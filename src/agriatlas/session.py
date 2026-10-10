@@ -36,17 +36,11 @@ class AgriAtlasSession:
         return f"<agriatlas.Session stac_url={self.client_config.stac_api_url!r}, \
             username=TBD>"
 
-    def login(
-        self, username: str | None = None, password: str | None = None, *, token: str | None = None
-    ) -> Client:
+    def login(self, username: str | None = None, password: str | None = None) -> Client:
         # before login, clear the clients and recreate them
         self.close()
         self._http_session = requests.Session()
         # all the login logic is handled here
-
-        if token is not None:
-            # TODO: Introduce the direct Token handling
-            raise NotImplementedError("Direct Token handling is NOT IMPLEMENTED YET!")
 
         # Here all the login logic is handled with Username/Password
         # token manager here!

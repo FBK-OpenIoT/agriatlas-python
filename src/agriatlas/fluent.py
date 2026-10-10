@@ -12,7 +12,6 @@ def login(
     username: str | None = None,
     password: str | None = None,
     *,
-    token: str | None = None,
     interactive: bool = True,
 ) -> Client:
     global _default_logged_session
@@ -24,17 +23,13 @@ def login(
     # Create a new session
     session = AgriAtlasSession(client_config=client_config)
 
-    if token is not None:
-        # Login with token if provied
-        session.login(token=token)
-    else:
-        # Resolve credentials
-        resolved_user, resolved_pass = resolve_credentials(
-            username=username, password=password, interactive=interactive
-        )
+    # Resolve credentials
+    resolved_user, resolved_pass = resolve_credentials(
+        username=username, password=password, interactive=interactive
+    )
 
-        # login with credentials
-        session.login(username=resolved_user, password=resolved_pass)
+    # login with credentials
+    session.login(username=resolved_user, password=resolved_pass)
 
     # Check if any previous session exists
     if _default_logged_session is not None:
