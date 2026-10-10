@@ -75,7 +75,7 @@ class TokenManager:
                 self._expires_at is not None
                 and time.monotonic() + self._refresh_margin >= self._expires_at
             )
-            if expiring and self.refreshable:
+            if expiring and self.is_refreshable:
                 self._refresh_access_token()
             return self._access_token
 
@@ -106,7 +106,7 @@ class TokenManager:
 
     def _refresh_access_token(self) -> None:
         """Refresh the access token using the refresh token."""
-        assert self._settings is not None and self._http is not None
+        assert self._config is not None and self._http_session is not None
 
         # Check if the refresh token has expired. Raise an exception if true.
         if self._refresh_expires_at is not None and time.monotonic() >= self._refresh_expires_at:
@@ -117,8 +117,8 @@ class TokenManager:
         # Refresh the access token using the refresh token
         logger.debug("Refreshing the AgriAtlas access token")
         data = request_access_token(
-            self._settings,
-            self._http,
+            self._config,
+            self._http_session,
             {"grant_type": "refresh_token", "refresh_token": self._refresh_token},
             failure="Could not refresh the AgriAtlas session; call agriatlas.login() again",
         )
