@@ -1,0 +1,49 @@
+[project]
+name = "agriatlas"
+version = "0.1.0"
+description = "Authenticated STAC client and download helper for AgriAtlas"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "OpenIoT Research Unit (Fondazione Bruno Kessler)", email = "openiot@fbk.eu" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pystac-client>=0.8",
+    "requests>=2.31",
+    "tqdm>=4.66",
+]
+
+[project.urls]
+Homepage = "https://www.agriatlas.eu/"
+Source = "https://github.com/FBK-OpenIoT/agriatlas-python"
+Changelog = "https://github.com/FBK-OpenIoT/agriatlas-python/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=agriatlas --cov-report=term-missing"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "responses>=0.26.3",
+    "ruff>=0.16.10",
+]
