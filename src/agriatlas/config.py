@@ -26,7 +26,7 @@ class AgriAtlasConfig:
         return f"{base}/realms/{self.keycloak_realm}/protocol/openid-connect/token"
 
     @classmethod
-    def from_env(cls) -> AgriAtlasConfig:
+    def from_env(cls: AgriAtlasConfig) -> AgriAtlasConfig:
         """Create a config from environment variables."""
         values: dict[str, Any] = {}
 
