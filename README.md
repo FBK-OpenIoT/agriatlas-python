@@ -40,7 +40,7 @@ To use the lib as developer, clone the repository then follow these steps
 ```bash
 uv sync                                                            # create .venv with dev tools
 uv run pre-commit install --hook-type pre-commit --hook-type pre-push
-# uv run pytest                                                      # tests with coverage. NOT IN PLACE NOW.
+uv run pytest                                                      # only a few tests with coverage are in place
 uv run ruff check && uv run ruff format
 ```
 
