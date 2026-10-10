@@ -86,5 +86,4 @@ class AgriAtlasSession:
         return self._token_manager.get_auth_headers()
 
     def _add_auth_headers(self, request: requests.Request) -> None:
-        print("TM: ", self._token_manager)
         request.headers.update(self._token_manager.get_auth_headers())

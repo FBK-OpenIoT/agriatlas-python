@@ -19,10 +19,6 @@ class AgriAtlasStacApiIO(StacApiIO):
         parameters: dict[str, Any] | None = None,
     ) -> str:
         try:
-            print("Href: ", href)
-            print("method: ", method)
-            print("headers: ", headers)
-            print("parameters: ", parameters)
             return super().request(href, method=method, headers=headers, parameters=parameters)
         except APIError as err:
             if isinstance(err.__context__, AuthenticationError):
