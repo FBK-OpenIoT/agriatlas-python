@@ -57,12 +57,7 @@ class TokenManager:
         data = request_access_token(
             config,
             http_session,
-            {
-                "grant_type": "password",
-                "username": username,
-                "password": password,
-                "scope": "openid profile email",
-            },
+            {"grant_type": "password", "username": username, "password": password},
             failure="AgriAtlas login failed",
         )
         logger.info("Logged in to AgriAtlas as %s", username)
