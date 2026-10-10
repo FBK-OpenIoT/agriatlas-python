@@ -10,6 +10,7 @@ from pystac_client import Client
 from .auth import TokenManager
 from .auth_stac import AgriAtlasStacApiIO
 from .config import AgriAtlasConfig
+from .exceptions import NotLoggedInError
 
 logger = logging.getLogger("agriatlas")
 
@@ -83,6 +84,7 @@ class AgriAtlasSession:
     def get_client(self):
         if self._stac_client:
             return self._stac_client
+        raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
 
     def get_auth_headers(self) -> dict[str, str]:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
