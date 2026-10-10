@@ -28,7 +28,7 @@ class TokenManager:
         refresh_token: str | None = None,
         refresh_expires_at: float | None = None,
         refresh_margin: int = 30,
-        config: AgriAtlasConfig | None = None,
+        config: AgriAtlasConfig,
         http_session: requests.Session | None = None,
     ) -> None:
         self._access_token = access_token
