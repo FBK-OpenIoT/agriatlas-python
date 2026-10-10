@@ -108,7 +108,8 @@ class AgriAtlasSession:
         if create_path:
             target.parent.mkdir(parents=True, exist_ok=True)
 
-        response = requests.get(
+        # Start the request with active session
+        response = self._http_session.get(
             asset.href,
             headers=self.get_auth_headers(),
             stream=True,
