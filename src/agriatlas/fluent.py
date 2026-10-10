@@ -47,8 +47,11 @@ def login(
 
 def logout():
     """Log out by closing session"""
+    global _default_logged_session
+
     if _default_logged_session is not None:
         _default_logged_session.close()
+    _default_logged_session = None
 
 
 def get_session() -> AgriAtlasSession:
