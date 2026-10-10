@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 import pystac
@@ -70,8 +71,11 @@ def current_session() -> AgriAtlasSession | None:
     return _default_logged_session
 
 
-def download_asset(asset: pystac.Asset, target: Path, *, create_path: bool = True):
-    """Download an asset from AgriAtlas and it places it in the target path"""
+def download_asset(asset: pystac.Asset, target: str | Path, *, create_path: bool = True) -> Path:
+    """Download an asset from AgriAtlas and place it in the target path.
+
+    Returns the target path. Raises NotLoggedInError if `login()` has not been called.
+    """
     if _default_logged_session:
         return _default_logged_session.download_asset(
             asset=asset, target=target, create_path=create_path
@@ -82,12 +86,17 @@ def download_asset(asset: pystac.Asset, target: Path, *, create_path: bool = Tru
 
 def download(
     item: pystac.Item,
-    target_path: Path,
+    target_path: str | Path,
     *,
-    roles: list[str] = frozenset(["data"]),
+    roles: Sequence[str] | None = ("data",),
     create_path: bool = True,
-):
-    """Download all assets associate with an Item in AgriAtlas and it places in the target path"""
+) -> dict[str, Path]:
+    """Download the assets of an Item into the target directory.
+
+    Only assets with at least one of the given roles are downloaded; with `roles=None`, all the
+    assets are. Returns a dict mapping each asset key to its local path. Raises NotLoggedInError
+    if `login()` has not been called.
+    """
     if _default_logged_session:
         return _default_logged_session.download(
             item=item, target_path=target_path, roles=roles, create_path=create_path

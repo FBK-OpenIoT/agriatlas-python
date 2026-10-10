@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 
 import pystac
@@ -94,8 +95,13 @@ class AgriAtlasSession:
     def _add_auth_headers(self, request: requests.Request) -> None:
         request.headers.update(self._token_manager.get_auth_headers())
 
-    def download_asset(self, asset: pystac.Asset, target: Path, *, create_path: bool = True):
-        """Download an asset from AgriAtlas and it places it in the target path"""
+    def download_asset(
+        self, asset: pystac.Asset, target: str | Path, *, create_path: bool = True
+    ) -> Path:
+        """Download an asset from AgriAtlas and place it in the target path.
+
+        Returns the target path. An existing file with the expected size is not downloaded again.
+        """
 
         target = Path(target)
 
@@ -129,23 +135,23 @@ class AgriAtlasSession:
     def download(
         self,
         item: pystac.Item,
-        target_path: Path,
+        target_path: str | Path,
         *,
-        roles: list[str] = frozenset(["data"]),
+        roles: Sequence[str] | None = ("data",),
         create_path: bool = True,
-    ):
-        """Download all the assets associated to an Item with roles."""
+    ) -> dict[str, Path]:
+        """Download the assets of an Item into the target directory.
+
+        Only assets with at least one of the given roles are downloaded; with `roles=None`, all
+        the assets are. Returns a dict mapping each asset key to its local path.
+        """
 
         # Accept str as well as Path
         target_path = Path(target_path)
 
-        # Protect against None roles
-        if roles is None:
-            roles = []
-
         assets_path = {}
         for key, asset in item.assets.items():
-            if not any(role in (asset.roles or []) for role in roles):
+            if roles is not None and not any(role in (asset.roles or []) for role in roles):
                 # No role matching with asset.roles
                 continue
             target = target_path / asset.href.rsplit("/", 1)[-1]
