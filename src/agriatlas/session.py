@@ -122,3 +122,26 @@ class AgriAtlasSession:
                 for chunk in response.iter_content(chunk_size=1 << 20):
                     f.write(chunk)
         return target
+
+    def download(
+        self,
+        item: pystac.Item,
+        target_path: Path,
+        *,
+        roles: list[str] = frozenset(["data"]),
+        create_path: bool = True,
+    ):
+        """Download all the assets associated to an Item with roles."""
+
+        if roles is None:
+            roles = []
+
+        assets_path = {}
+        for key, asset in item.assets.items():
+            if not any(role in (asset.roles or []) for role in roles):
+                # No role matching with asset.roles
+                continue
+            target = target_path / asset.href.rsplit("/", 1)[-1]
+            assets_path[key] = self.download_asset(asset, target, create_path=create_path)
+
+        return assets_path

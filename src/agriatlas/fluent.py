@@ -76,3 +76,21 @@ def download_asset(asset: pystac.Asset, target: Path, *, create_path: bool = Tru
         return _default_logged_session.download_asset(
             asset=asset, target=target, create_path=create_path
         )
+    else:
+        raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
+
+
+def download(
+    item: pystac.Item,
+    target_path: Path,
+    *,
+    roles: list[str] = frozenset(["data"]),
+    create_path: bool = True,
+):
+    """Download all assets associate with an Item in AgriAtlas and it places in the target path"""
+    if _default_logged_session:
+        return _default_logged_session.download(
+            item=item, target_path=target_path, roles=roles, create_path=create_path
+        )
+    else:
+        raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
