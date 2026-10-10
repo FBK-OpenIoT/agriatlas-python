@@ -33,7 +33,8 @@ class AgriAtlasSession:
         self._token_manager = None
 
     def __repr__(self) -> str:
-        return f"<agriatlas.Session stac_url={self.client_config.stac_api_url!r}, username=TBD>"
+        return f"<agriatlas.Session stac_url={self.client_config.stac_api_url!r}, \
+            username=TBD>"
 
     def login(
         self, username: str | None = None, password: str | None = None, *, token: str | None = None
@@ -56,6 +57,7 @@ class AgriAtlasSession:
             password=password,
         )
         # Forget password by deallocating it!
+        password = ""
         del password
 
         # Create the stack client with auth
