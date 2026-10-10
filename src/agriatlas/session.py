@@ -85,6 +85,10 @@ class AgriAtlasSession:
         if self.stac_client is not None:
             self.stac_client = None
 
+    def get_client(self):
+        if self.stac_client:
+            return self.stac_client
+
     def get_auth_headers(self) -> dict[str, str]:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
         return self._token_manager.get_auth_headers()
