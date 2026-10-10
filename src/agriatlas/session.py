@@ -23,12 +23,11 @@ class AgriAtlasSession:
     """
 
     _client_config: AgriAtlasConfig
-    _http_session: requests.Session
-    _stac_client: Client
-    _token_manager: TokenManager
+    _http_session: requests.Session | None
+    _stac_client: Client | None
+    _token_manager: TokenManager | None
 
-    def __init__(self, client_config: AgriAtlasConfig) -> AgriAtlasSession:
-
+    def __init__(self, client_config: AgriAtlasConfig) -> None:
         self._client_config = client_config
         self._http_session = None
         self._stac_client = None
