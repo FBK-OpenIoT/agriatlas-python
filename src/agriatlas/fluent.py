@@ -12,12 +12,14 @@ def login(
     username: str | None = None,
     password: str | None = None,
     *,
+    client_config: AgriAtlasConfig | None = None,
     interactive: bool = True,
 ) -> Client:
     global _default_logged_session
 
     # Get the config from env vars (if any is set)
-    client_config = AgriAtlasConfig.from_env()
+    if client_config is None:
+        client_config = AgriAtlasConfig.from_env()
 
     # Note: Should this section be protected by try/except?
     # Create a new session
