@@ -7,7 +7,7 @@ This library provides a simple authenticated STAC client and a download helper i
 ```python
 import agriatlas
 
-stac_client = agriatlas.login()  # pystac_client.Client, already authenticated
+stac_client = agriatlas.login("<username>", "<password>")
 item = stac_client.get_collection("<collection-id>").get_item("<item-id>")
 
 files = agriatlas.download(item, "./data")  # {asset_key: Path} for the "data" assets
