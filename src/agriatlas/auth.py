@@ -83,6 +83,15 @@ class TokenManager:
         """Return the Authorization header with a valid access token."""
         return {"Authorization": f"Bearer {self.get_bearer_token()}"}
 
+    def close(self):
+        self._access_token = None
+        self._expires_at = 0
+        self._refresh_token = None
+        self._refresh_expires_at = 0
+        if self._http_session is not None:
+            self._http_session.close()
+            self._http_session = None
+
     def _store_tokens(self, data: dict[str, Any]) -> None:
         """Locally store the access token, refresh token, and their expiration times."""
         now = time.monotonic()

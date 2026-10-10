@@ -74,12 +74,16 @@ class AgriAtlasSession:
         self.close()
 
     def close(self):
+        if self._token_manager is not None:
+            self._token_manager.close()
+            self._token_manager = None
+
         if self._http_session is not None:
             self._http_session.close()
-            del self._http_session
+            self._http_session = None
 
         if self.stac_client is not None:
-            del self.stac_client
+            self.stac_client = None
 
     def get_auth_headers(self) -> dict[str, str]:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
