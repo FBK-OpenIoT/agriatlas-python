@@ -37,7 +37,7 @@ def login(
         _default_logged_session.close()
     _default_logged_session = session
 
-    return session.stac_client
+    return session.get_client()
 
 
 def logout():

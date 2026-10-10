@@ -21,19 +21,20 @@ class AgriAtlasSession:
     Create one with `agriatlas.login()`.
     """
 
-    client_config: AgriAtlasConfig
-    stac_client: Client
-    token_manager: TokenManager
+    _client_config: AgriAtlasConfig
+    _http_session: requests.Session
+    _stac_client: Client
+    _token_manager: TokenManager
 
     def __init__(self, client_config: AgriAtlasConfig) -> AgriAtlasSession:
 
-        self.client_config = client_config
+        self._client_config = client_config
         self._http_session = None
-        self.stac_client = None
+        self._stac_client = None
         self._token_manager = None
 
     def __repr__(self) -> str:
-        return f"<agriatlas.Session stac_url={self.client_config.stac_api_url!r}, \
+        return f"<agriatlas.Session stac_url={self._client_config.stac_api_url!r}, \
             username=TBD>"
 
     def login(self, username: str | None = None, password: str | None = None) -> Client:
@@ -45,7 +46,7 @@ class AgriAtlasSession:
         # Here all the login logic is handled with Username/Password
         # token manager here!
         self._token_manager = TokenManager.password_grant(
-            config=self.client_config,
+            config=self._client_config,
             http_session=self._http_session,
             username=username,
             password=password,
@@ -55,14 +56,14 @@ class AgriAtlasSession:
         del password
 
         # Create the stack client with auth
-        self.stac_client = Client.open(
-            url=self.client_config.stac_api_url,
+        self._stac_client = Client.open(
+            url=self._client_config.stac_api_url,
             stac_io=AgriAtlasStacApiIO(),  # Capture HTTP errors
             request_modifier=self._add_auth_headers,
-            timeout=self.client_config.timeout,
+            timeout=self._client_config.timeout,
         )
 
-        return self.stac_client
+        return self._stac_client
 
     def logout(self):
         self.close()
@@ -76,12 +77,12 @@ class AgriAtlasSession:
             self._http_session.close()
             self._http_session = None
 
-        if self.stac_client is not None:
-            self.stac_client = None
+        if self._stac_client is not None:
+            self._stac_client = None
 
     def get_client(self):
-        if self.stac_client:
-            return self.stac_client
+        if self._stac_client:
+            return self._stac_client
 
     def get_auth_headers(self) -> dict[str, str]:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
