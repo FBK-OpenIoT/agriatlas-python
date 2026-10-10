@@ -52,18 +52,21 @@ def resolve_credentials(
 
 def request_access_token(
     config: AgriAtlasConfig,
-    http: requests.Session,
+    http_session: requests.Session,
     credential_form: dict[str, Any],
     *,
     failure: str,
 ) -> dict[str, Any]:
     """Request an access token from Keycloak using the given form data."""
 
-    credential_form = {"client_id": config.keycloak_client_id, **credential_form}
+    credential_form = {
+        "client_id": config.keycloak_client_id,
+        **credential_form,
+    }
 
     try:
         # Send a POST request to the Keycloak token endpoint with the form data
-        response = http.post(config.token_url, data=credential_form, timeout=config.timeout)
+        response = http_session.post(config.token_url, data=credential_form, timeout=config.timeout)
     except requests.RequestException as err:
         raise AuthenticationError(
             f"{failure}: could not reach {config.token_url} ({type(err).__name__})"
@@ -88,7 +91,7 @@ def parse_keycloak_error(response: requests.Response) -> str:
         message = body.get("error_description") or body.get("error")
         if message:
             return str(message)
-    return f"HTTP {response.status_code}"
+    return f"http_session {response.status_code}"
 
 
 def compute_token_expiration_deadline(now: float, seconds: Any) -> float | None:
