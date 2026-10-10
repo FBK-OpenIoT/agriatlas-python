@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, fields
-from typing import Any
+from typing import Any, Self
 
 from .exceptions import AgriAtlasError
 
@@ -26,7 +26,7 @@ class AgriAtlasConfig:
         return f"{base}/realms/{self.keycloak_realm}/protocol/openid-connect/token"
 
     @classmethod
-    def from_env(cls: AgriAtlasConfig) -> AgriAtlasConfig:
+    def from_env(cls) -> Self:
         """Create a config from environment variables."""
         values: dict[str, Any] = {}
 
