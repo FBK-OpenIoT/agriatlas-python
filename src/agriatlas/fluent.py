@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import pystac
 from pystac_client import Client
 
 from .auth_utils import resolve_credentials
@@ -65,3 +68,11 @@ def get_session() -> AgriAtlasSession:
 def current_session() -> AgriAtlasSession | None:
     """Return the default AgriAtlasSession created by `login()`, or None if not logged in."""
     return _default_logged_session
+
+
+def download_asset(asset: pystac.Asset, target: Path, *, create_path: bool = True):
+    """Download an asset from AgriAtlas and it places it in the target path"""
+    if _default_logged_session:
+        return _default_logged_session.download_asset(
+            asset=asset, target=target, create_path=create_path
+        )

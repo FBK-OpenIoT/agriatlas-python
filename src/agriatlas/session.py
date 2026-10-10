@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
+import pystac
 import requests
 from pystac_client import Client
 
@@ -91,3 +93,32 @@ class AgriAtlasSession:
 
     def _add_auth_headers(self, request: requests.Request) -> None:
         request.headers.update(self._token_manager.get_auth_headers())
+
+    def download_asset(self, asset: pystac.Asset, target: Path, *, create_path: bool = True):
+        """Download an asset from AgriAtlas and it places it in the target path"""
+
+        # Get the expected asset size
+        expected_size = asset.extra_fields.get("file:size")
+        if target.exists() and (expected_size is None or target.stat().st_size == expected_size):
+            # If file present, skip download
+            # TODO: add checksum verification to avoid download
+            return target
+
+        # Create the path tree if required
+        if create_path:
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+        response = requests.get(
+            asset.href,
+            headers=self.get_auth_headers(),
+            stream=True,
+            timeout=60,
+        )
+        if response.status_code == 401:
+            raise NotLoggedInError(f"HTTP 401 - Impossible to download {asset.href}")
+        with response:
+            response.raise_for_status()
+            with open(target, "wb") as f:
+                for chunk in response.iter_content(chunk_size=1 << 20):
+                    f.write(chunk)
+        return target
