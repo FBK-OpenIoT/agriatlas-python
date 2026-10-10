@@ -97,6 +97,8 @@ class AgriAtlasSession:
     def download_asset(self, asset: pystac.Asset, target: Path, *, create_path: bool = True):
         """Download an asset from AgriAtlas and it places it in the target path"""
 
+        target = Path(target)
+
         # Get the expected asset size
         expected_size = asset.extra_fields.get("file:size")
         if target.exists() and (expected_size is None or target.stat().st_size == expected_size):
@@ -134,6 +136,10 @@ class AgriAtlasSession:
     ):
         """Download all the assets associated to an Item with roles."""
 
+        # Accept str as well as Path
+        target_path = Path(target_path)
+
+        # Protect against None roles
         if roles is None:
             roles = []
 
