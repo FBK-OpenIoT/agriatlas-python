@@ -28,7 +28,7 @@ The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are 
 
 There are two layers:
 
-- **`fluent.py`: global default session.** `login()` resolves credentials, creates an
+- **`_default.py`: global default session.** `login()` resolves credentials, creates an
   `AgriAtlasSession`, logs it in, and only then replaces (and closes) the previous module-level
   `_default_logged_session`. It returns the session's STAC client. `logout()`, `get_session()`,
   `current_session()`, `download()` and `download_asset()` all operate on that global.

@@ -2,9 +2,9 @@
 
 from importlib.metadata import version
 
+from ._default import current_session, download, download_asset, get_session, login, logout
 from .config import AgriAtlasConfig
 from .exceptions import AgriAtlasError, AuthenticationError, NotLoggedInError
-from .fluent import current_session, download, download_asset, get_session, login, logout
 from .session import AgriAtlasSession
 
 __version__ = version("agriatlas")
