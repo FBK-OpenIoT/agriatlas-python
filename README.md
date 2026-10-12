@@ -27,6 +27,16 @@ Downloads are verified against the asset's `file:checksum` when the catalog prov
 already present with the expected checksum (or size, if there is no checksum) are not downloaded
 again.
 
+For security, the access token is only sent to trusted hosts (by default `www.agriatlas.eu` and
+`minio.services.irritre.openiotlab.eu`). A STAC request or a download to any other host raises
+`agriatlas.NotTrustedHostError`. To change the trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a
+comma-separated list, or pass a custom config (it replaces the defaults):
+
+```python
+config = agriatlas.AgriAtlasConfig(trusted_hosts={"www.agriatlas.eu", "data.agriatlas.eu"})
+stac_client = agriatlas.login(client_config=config)
+```
+
 The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. The full PySTAC Client Documentation can be found [HERE](https://pystac-client.readthedocs.io/).
 
 ## Installation

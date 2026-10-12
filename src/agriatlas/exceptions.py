@@ -11,3 +11,7 @@ class AuthenticationError(AgriAtlasError):
 
 class NotLoggedInError(AuthenticationError):
     """An operation needs a session, but `login()` has not been called."""
+
+
+class NotTrustedHostError(AgriAtlasError):
+    """A request or download targets a host that is not in the configured trusted hosts."""

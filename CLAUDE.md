@@ -37,12 +37,12 @@ There are two layers:
 
 How auth is wired into STAC requests:
 
-- `Client.open(..., request_modifier=session._add_auth_headers, stac_io=AgriAtlasStacApiIO())`. Every
+- `Client.open(..., request_modifier=session._prepare_authenticated_request, stac_io=AgriAtlasStacApiIO())`. Every
   STAC request calls `TokenManager.get_auth_headers()`, which refreshes the access token under a lock
   if it expires within `refresh_margin` seconds. Deadlines use `time.monotonic()`.
 - `auth_stac.AgriAtlasStacApiIO` subclasses pystac-client's `StacApiIO`. It turns an `APIError` whose
-  `__context__` is an `AuthenticationError` back into that error, for example when a token refresh
-  fails inside the request modifier. It also maps HTTP 401/403 to `AuthenticationError`. This depends
+  `__context__` is an `AgriAtlasError` back into that error, for example when a token refresh fails
+  or the host is not trusted inside the request modifier. It also maps HTTP 401/403 to `AuthenticationError`. This depends
   on pystac-client internals, so re-check it when upgrading pystac-client.
 - `auth_utils.py` holds the Keycloak token POST (`request_access_token`), error parsing, expiry
   computation, and `resolve_credentials`. The credential lookup order is: arguments, then
@@ -51,12 +51,22 @@ How auth is wired into STAC requests:
 
 Config: `AgriAtlasConfig` is a frozen dataclass. `from_env()` maps each field to the environment
 variable `AGRIATLAS_<FIELD_NAME_UPPER>`: `STAC_API_URL`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`,
-`KEYCLOAK_CLIENT_ID` and `TIMEOUT`. Empty values are ignored. A new field gets an env override
-automatically, but non-string fields need explicit parsing in `from_env()`, as `timeout` has.
+`KEYCLOAK_CLIENT_ID`, `TIMEOUT` and `TRUSTED_HOSTS` (comma-separated). Empty values are ignored. A new
+field gets an env override automatically, but non-string fields need explicit parsing in
+`from_env()`, as `timeout` has.
 
-Exceptions: `AgriAtlasError` is the base class. `AuthenticationError` derives from it, and
-`NotLoggedInError` derives from `AuthenticationError`. Raise these classes, not raw
-`requests`/pystac errors, at API boundaries.
+Trusted hosts: `AgriAtlasConfig.trusted_hosts` accepts a single host, a comma-separated string (which
+is how the env var works) or any collection of host names. `__post_init__` splits strings on commas
+and normalizes everything to a lowercase `frozenset`. `check_trusted_host(url)` compares
+the URL's exact hostname and raises `NotTrustedHostError`. It is called before the token is
+attached: in `AgriAtlasSession._prepare_authenticated_request` (every STAC request) and at the start of
+`download_asset`. Any new code path that sends the token must call it too. The Keycloak token URL is
+not checked: it comes from the config, not from catalog data.
+
+Exceptions: `AgriAtlasError` is the base class. `AuthenticationError` and
+`NotTrustedHostError` derive from it, and `NotLoggedInError` derives from
+`AuthenticationError`. Raise these classes, not raw `requests`/pystac errors, at API boundaries.
+`AgriAtlasStacApiIO` unwraps any `AgriAtlasError` that pystac-client wrapped in an `APIError`.
 
 Downloads: `download(item, dir, roles=("data",))` picks the assets that have any matching role
 (`roles=None` downloads all of them). It names each file after the last segment of `asset.href`.

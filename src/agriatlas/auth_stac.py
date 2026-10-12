@@ -3,12 +3,15 @@ from typing import Any
 from pystac_client.exceptions import APIError
 from pystac_client.stac_api_io import StacApiIO
 
-from .exceptions import AuthenticationError
+from .exceptions import AgriAtlasError, AuthenticationError
 
 
 class AgriAtlasStacApiIO(StacApiIO):
     """AgriAtlasStacApiIO overrides StacApiIO to capture authentication errors by overriding the
     request() method.
+
+    StacApiIO wraps any error raised by the request modifier in an APIError: agriatlas errors
+    (failed token refresh, untrusted host) are unwrapped and raised as they are.
     """
 
     def request(
@@ -21,7 +24,7 @@ class AgriAtlasStacApiIO(StacApiIO):
         try:
             return super().request(href, method=method, headers=headers, parameters=parameters)
         except APIError as err:
-            if isinstance(err.__context__, AuthenticationError):
+            if isinstance(err.__context__, AgriAtlasError):
                 raise err.__context__ from None
             status = getattr(err, "status_code", None)
 

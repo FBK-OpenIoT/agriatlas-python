@@ -100,7 +100,7 @@ class AgriAtlasSession:
         self._stac_client = Client.open(
             url=self._client_config.stac_api_url,
             stac_io=AgriAtlasStacApiIO(),  # Capture HTTP errors
-            request_modifier=self._add_auth_headers,
+            request_modifier=self._prepare_authenticated_request,
             timeout=self._client_config.timeout,
         )
 
@@ -130,7 +130,11 @@ class AgriAtlasSession:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
         return self._token_manager.get_auth_headers()
 
-    def _add_auth_headers(self, request: requests.Request) -> None:
+    def _prepare_authenticated_request(self, request: requests.Request) -> None:
+        # Never send the token outside the trusted hosts
+        self._client_config.check_trusted_host(request.url)
+
+        # Add the authentication header
         request.headers.update(self._token_manager.get_auth_headers())
 
     def download_asset(self, asset: pystac.Asset, target: str | Path) -> Path:
@@ -139,6 +143,9 @@ class AgriAtlasSession:
         Missing parent directories are created. Returns the target path. An existing file with
         the expected checksum (or size, if the asset has no checksum) is not downloaded again.
         """
+
+        # Never send the token outside the trusted hosts
+        self._client_config.check_trusted_host(asset.href)
 
         target = Path(target)
 
