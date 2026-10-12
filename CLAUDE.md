@@ -77,7 +77,10 @@ is converted by `multihash_to_pooch_hash()` and passed as `known_hash`, so pooch
 download; a mismatch becomes `AgriAtlasError`. An existing file is skipped if its checksum matches,
 or, with no checksum, if its size matches `file:size` (or `file:size` is missing). Otherwise it is
 deleted first, because pooch never re-downloads a file that exists without a hash. HTTP 401, 403 and
-404 become `NotLoggedInError`, `AuthenticationError` and `AgriAtlasError`.
+404 become `NotLoggedInError`, `AuthenticationError` and `AgriAtlasError`. During each download, a
+temporary filter on pooch's logger always drops its "known_hash" hint, and `verbose=False` adds one
+that drops all INFO messages and disables the progress bar. Use filters, not `setLevel()`: pooch
+creates its logger outside the logging manager, so `setLevel()` doesn't reset its level cache.
 
 ## Conventions
 

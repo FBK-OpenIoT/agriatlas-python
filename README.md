@@ -27,6 +27,11 @@ Downloads are verified against the asset's `file:checksum` when the catalog prov
 already present with the expected checksum (or size, if there is no checksum) are not downloaded
 again.
 
+Downloads show a progress bar and log messages. Pass `verbose=False` to hide them, e.g. in scripts:
+```python
+files = agriatlas.download(item, "./data", verbose=False)
+```
+
 For security, the access token is only sent to trusted hosts (by default `www.agriatlas.eu` and
 `minio.services.irritre.openiotlab.eu`). A STAC request or a download to any other host raises
 `agriatlas.NotTrustedHostError`. To change the trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a

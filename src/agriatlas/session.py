@@ -22,6 +22,21 @@ logger = logging.getLogger("agriatlas")
 _MULTIHASH_CODES = {0x11: "sha1", 0x12: "sha256", 0x13: "sha512", 0xD5: "md5"}
 
 
+def _drop_below_warning(record: logging.LogRecord) -> bool:
+    """Logging filter that keeps only warnings and errors."""
+    return record.levelno >= logging.WARNING
+
+
+def _drop_known_hash_hint(record: logging.LogRecord) -> bool:
+    """Logging filter that drops pooch's hint to pass the hash as `known_hash` to pooch.retrieve.
+
+    The hint is meant for pooch users and makes no sense to agriatlas users. Pooch only logs it
+    when no hash is given, always with SHA256: match the `known_hash` part, which doesn't depend on
+    the hash algorithm.
+    """
+    return "'known_hash' argument" not in str(record.msg)
+
+
 def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
     """Read an unsigned varint from data at pos, return (value, next position)."""
     value = shift = 0
@@ -137,11 +152,14 @@ class AgriAtlasSession:
         # Add the authentication header
         request.headers.update(self._token_manager.get_auth_headers())
 
-    def download_asset(self, asset: pystac.Asset, target: str | Path) -> Path:
+    def download_asset(
+        self, asset: pystac.Asset, target: str | Path, *, verbose: bool = True
+    ) -> Path:
         """Download an asset from AgriAtlas and place it in the target path.
 
         Missing parent directories are created. Returns the target path. An existing file with
         the expected checksum (or size, if the asset has no checksum) is not downloaded again.
+        With `verbose=False`, the progress bar and pooch's log messages are hidden.
         """
 
         # Never send the token outside the trusted hosts
@@ -168,11 +186,20 @@ class AgriAtlasSession:
 
         # Download to a temporary file, moved to the target once complete and verified
         downloader = pooch.HTTPDownloader(
-            progressbar=True,
+            progressbar=verbose,
             chunk_size=1 << 20,
             headers=self.get_auth_headers(),
             timeout=self._client_config.timeout,
         )
+
+        # pooch logs at INFO level through its own handler: always drop its "known_hash" hint, and
+        # all the INFO messages if not verbose. Filters are used because pooch's logger is not
+        # registered in the logging manager, so setLevel() would not reset its cached levels
+        pooch_logger = pooch.get_logger()
+        pooch_logger.addFilter(_drop_known_hash_hint)
+        if not verbose:
+            pooch_logger.addFilter(_drop_below_warning)
+
         try:
             pooch.retrieve(
                 asset.href,
@@ -193,6 +220,9 @@ class AgriAtlasSession:
         except ValueError as err:
             # pooch raises ValueError if the hash does not match, and discards the file
             raise AgriAtlasError(f"Checksum mismatch for {asset.href}: {err}") from err
+        finally:
+            pooch_logger.removeFilter(_drop_known_hash_hint)
+            pooch_logger.removeFilter(_drop_below_warning)
         return target
 
     def download(
@@ -201,11 +231,13 @@ class AgriAtlasSession:
         target_path: str | Path,
         *,
         roles: Sequence[str] | None = ("data",),
+        verbose: bool = True,
     ) -> dict[str, Path]:
         """Download the assets of an Item into the target directory.
 
         Only assets with at least one of the given roles are downloaded; with `roles=None`, all
-        the assets are. Returns a dict mapping each asset key to its local path.
+        the assets are. Returns a dict mapping each asset key to its local path. With
+        `verbose=False`, the progress bars and pooch's log messages are hidden.
         """
 
         # Accept str as well as Path
@@ -217,6 +249,6 @@ class AgriAtlasSession:
                 # No role matching with asset.roles
                 continue
             target = target_path / asset.href.rsplit("/", 1)[-1]
-            assets_path[key] = self.download_asset(asset, target)
+            assets_path[key] = self.download_asset(asset, target, verbose=verbose)
 
         return assets_path

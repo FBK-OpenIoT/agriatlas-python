@@ -71,13 +71,14 @@ def current_session() -> AgriAtlasSession | None:
     return _default_logged_session
 
 
-def download_asset(asset: pystac.Asset, target: str | Path) -> Path:
+def download_asset(asset: pystac.Asset, target: str | Path, *, verbose: bool = True) -> Path:
     """Download an asset from AgriAtlas and place it in the target path.
 
-    Returns the target path. Raises NotLoggedInError if `login()` has not been called.
+    Returns the target path. With `verbose=False`, the progress bar and pooch's log messages are
+    hidden. Raises NotLoggedInError if `login()` has not been called.
     """
     if _default_logged_session:
-        return _default_logged_session.download_asset(asset=asset, target=target)
+        return _default_logged_session.download_asset(asset=asset, target=target, verbose=verbose)
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
 
@@ -87,14 +88,18 @@ def download(
     target_path: str | Path,
     *,
     roles: Sequence[str] | None = ("data",),
+    verbose: bool = True,
 ) -> dict[str, Path]:
     """Download the assets of an Item into the target directory.
 
     Only assets with at least one of the given roles are downloaded; with `roles=None`, all the
-    assets are. Returns a dict mapping each asset key to its local path. Raises NotLoggedInError
-    if `login()` has not been called.
+    assets are. Returns a dict mapping each asset key to its local path. With `verbose=False`, the
+    progress bars and pooch's log messages are hidden. Raises NotLoggedInError if `login()` has
+    not been called.
     """
     if _default_logged_session:
-        return _default_logged_session.download(item=item, target_path=target_path, roles=roles)
+        return _default_logged_session.download(
+            item=item, target_path=target_path, roles=roles, verbose=verbose
+        )
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")

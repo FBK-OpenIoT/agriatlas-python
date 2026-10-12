@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `agriatlas.download_asset(asset, target)`: download a single asset, with a progress bar. Downloads
   are verified against the asset's `file:checksum` when available. Files already present with the
   expected checksum (or size, if there is no checksum) are skipped. Missing directories are created.
+- `verbose` argument for `download()` and `download_asset()` (default `True`): `verbose=False` hides
+  the progress bar and the download log messages.
 - HTTP 401, 403 and 404 on download raise `NotLoggedInError`, `AuthenticationError` and
   `AgriAtlasError`.
 - Automatic access token refresh before every STAC request and download.
