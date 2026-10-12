@@ -71,15 +71,13 @@ def current_session() -> AgriAtlasSession | None:
     return _default_logged_session
 
 
-def download_asset(asset: pystac.Asset, target: str | Path, *, create_path: bool = True) -> Path:
+def download_asset(asset: pystac.Asset, target: str | Path) -> Path:
     """Download an asset from AgriAtlas and place it in the target path.
 
     Returns the target path. Raises NotLoggedInError if `login()` has not been called.
     """
     if _default_logged_session:
-        return _default_logged_session.download_asset(
-            asset=asset, target=target, create_path=create_path
-        )
+        return _default_logged_session.download_asset(asset=asset, target=target)
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
 
@@ -89,7 +87,6 @@ def download(
     target_path: str | Path,
     *,
     roles: Sequence[str] | None = ("data",),
-    create_path: bool = True,
 ) -> dict[str, Path]:
     """Download the assets of an Item into the target directory.
 
@@ -98,8 +95,6 @@ def download(
     if `login()` has not been called.
     """
     if _default_logged_session:
-        return _default_logged_session.download(
-            item=item, target_path=target_path, roles=roles, create_path=create_path
-        )
+        return _default_logged_session.download(item=item, target_path=target_path, roles=roles)
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")

@@ -6,6 +6,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
+import pooch
 import pystac
 import requests
 from pystac_client import Client
@@ -13,9 +14,46 @@ from pystac_client import Client
 from .auth import TokenManager
 from .auth_stac import AgriAtlasStacApiIO
 from .config import AgriAtlasConfig
-from .exceptions import NotLoggedInError
+from .exceptions import AgriAtlasError, AuthenticationError, NotLoggedInError
 
 logger = logging.getLogger("agriatlas")
+
+# Multihash codes (https://github.com/multiformats/multicodec) to hash names supported by pooch
+_MULTIHASH_CODES = {0x11: "sha1", 0x12: "sha256", 0x13: "sha512", 0xD5: "md5"}
+
+
+def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
+    """Read an unsigned varint from data at pos, return (value, next position)."""
+    value = shift = 0
+    while True:
+        byte = data[pos]
+        pos += 1
+        value |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return value, pos
+        shift += 7
+
+
+def multihash_to_pooch_hash(checksum: str | None) -> str | None:
+    """Convert a STAC `file:checksum` (hex-encoded multihash) to pooch's "<alg>:<hex>" format.
+
+    Returns None if the checksum is missing or uses an unsupported/invalid encoding.
+    """
+    if not checksum:
+        return None
+    try:
+        data = bytes.fromhex(checksum)
+        code, pos = _read_varint(data, 0)
+        length, pos = _read_varint(data, pos)
+    except (ValueError, IndexError):
+        logger.warning("Ignoring invalid file:checksum %r", checksum)
+        return None
+
+    digest = data[pos:]
+    if code not in _MULTIHASH_CODES or len(digest) != length:
+        logger.warning("Ignoring unsupported file:checksum %r", checksum)
+        return None
+    return f"{_MULTIHASH_CODES[code]}:{digest.hex()}"
 
 
 class AgriAtlasSession:
@@ -95,41 +133,59 @@ class AgriAtlasSession:
     def _add_auth_headers(self, request: requests.Request) -> None:
         request.headers.update(self._token_manager.get_auth_headers())
 
-    def download_asset(
-        self, asset: pystac.Asset, target: str | Path, *, create_path: bool = True
-    ) -> Path:
+    def download_asset(self, asset: pystac.Asset, target: str | Path) -> Path:
         """Download an asset from AgriAtlas and place it in the target path.
 
-        Returns the target path. An existing file with the expected size is not downloaded again.
+        Missing parent directories are created. Returns the target path. An existing file with
+        the expected checksum (or size, if the asset has no checksum) is not downloaded again.
         """
 
         target = Path(target)
 
-        # Get the expected asset size
+        # Get the expected asset size and checksum
         expected_size = asset.extra_fields.get("file:size")
-        if target.exists() and (expected_size is None or target.stat().st_size == expected_size):
-            # If file present, skip download
-            # TODO: add checksum verification to avoid download
-            return target
+        expected_checksum = multihash_to_pooch_hash(asset.extra_fields.get("file:checksum"))
 
-        # Create the path tree if required
-        if create_path:
-            target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            # If file present and complete, skip download. Use the checksum if available,
+            # otherwise the size
+            if expected_checksum is not None:
+                if pooch.hashes.hash_matches(str(target), expected_checksum):
+                    return target
+            elif expected_size is None or target.stat().st_size == expected_size:
+                return target
 
-        # Start the request with active session
-        response = self._http_session.get(
-            asset.href,
+        # pooch skips files that already exist, so remove the incomplete one to download it again.
+        # At this point, the existing file is corrupted/incomplete
+        target.unlink(missing_ok=True)
+
+        # Download to a temporary file, moved to the target once complete and verified
+        downloader = pooch.HTTPDownloader(
+            progressbar=True,
+            chunk_size=1 << 20,
             headers=self.get_auth_headers(),
-            stream=True,
-            timeout=60,
+            timeout=self._client_config.timeout,
         )
-        if response.status_code == 401:
-            raise NotLoggedInError(f"HTTP 401 - Impossible to download {asset.href}")
-        with response:
-            response.raise_for_status()
-            with open(target, "wb") as f:
-                for chunk in response.iter_content(chunk_size=1 << 20):
-                    f.write(chunk)
+        try:
+            pooch.retrieve(
+                asset.href,
+                known_hash=expected_checksum,
+                fname=target.name,
+                path=target.parent,
+                downloader=downloader,
+            )
+        except requests.HTTPError as err:
+            status = err.response.status_code if err.response is not None else None
+            if status == 401:
+                raise NotLoggedInError(f"HTTP 401 - Impossible to download {asset.href}") from err
+            if status == 403:
+                raise AuthenticationError(f"HTTP 403 - Access denied to {asset.href}") from err
+            if status == 404:
+                raise AgriAtlasError(f"HTTP 404 - Asset not found at {asset.href}") from err
+            raise
+        except ValueError as err:
+            # pooch raises ValueError if the hash does not match, and discards the file
+            raise AgriAtlasError(f"Checksum mismatch for {asset.href}: {err}") from err
         return target
 
     def download(
@@ -138,7 +194,6 @@ class AgriAtlasSession:
         target_path: str | Path,
         *,
         roles: Sequence[str] | None = ("data",),
-        create_path: bool = True,
     ) -> dict[str, Path]:
         """Download the assets of an Item into the target directory.
 
@@ -155,6 +210,6 @@ class AgriAtlasSession:
                 # No role matching with asset.roles
                 continue
             target = target_path / asset.href.rsplit("/", 1)[-1]
-            assets_path[key] = self.download_asset(asset, target, create_path=create_path)
+            assets_path[key] = self.download_asset(asset, target)
 
         return assets_path

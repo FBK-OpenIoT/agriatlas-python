@@ -23,7 +23,9 @@ or all the assets regardless of their role
 all_files = agriatlas.download(item, "./data", roles=None)
 ```
 
-Files already present with the expected size are not downloaded again.
+Downloads are verified against the asset's `file:checksum` when the catalog provides it. Files
+already present with the expected checksum (or size, if there is no checksum) are not downloaded
+again.
 
 The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. The full PySTAC Client Documentation can be found [HERE](https://pystac-client.readthedocs.io/).
 

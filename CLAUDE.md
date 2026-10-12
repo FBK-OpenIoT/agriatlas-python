@@ -33,8 +33,7 @@ There are two layers:
   `_default_logged_session`. It returns the session's STAC client. `logout()`, `get_session()`,
   `current_session()`, `download()` and `download_asset()` all operate on that global.
 - **`session.py`: `AgriAtlasSession`.** Owns one `requests.Session`, a `TokenManager` and the
-  `pystac_client.Client`. `login()` always calls `close()` first and rebuilds everything. Downloads go
-  through the same `requests.Session`.
+  `pystac_client.Client`. `login()` always calls `close()` first and rebuilds everything.
 
 How auth is wired into STAC requests:
 
@@ -60,9 +59,15 @@ Exceptions: `AgriAtlasError` is the base class. `AuthenticationError` derives fr
 `requests`/pystac errors, at API boundaries.
 
 Downloads: `download(item, dir, roles=("data",))` picks the assets that have any matching role
-(`roles=None` downloads all of them). It names each file after the last segment of `asset.href`. A
-file is skipped if it exists and its size matches the asset's `file:size` (or if `file:size` is
-missing).
+(`roles=None` downloads all of them). It names each file after the last segment of `asset.href`.
+`download_asset()` downloads with `pooch.retrieve` (its own `requests.get`, not the session's
+`requests.Session`), passing the auth headers and the config timeout. Pooch writes to a temp file,
+creates missing directories, and shows a tqdm progress bar. The STAC `file:checksum` (hex multihash)
+is converted by `multihash_to_pooch_hash()` and passed as `known_hash`, so pooch verifies each
+download; a mismatch becomes `AgriAtlasError`. An existing file is skipped if its checksum matches,
+or, with no checksum, if its size matches `file:size` (or `file:size` is missing). Otherwise it is
+deleted first, because pooch never re-downloads a file that exists without a hash. HTTP 401, 403 and
+404 become `NotLoggedInError`, `AuthenticationError` and `AgriAtlasError`.
 
 ## Conventions
 
