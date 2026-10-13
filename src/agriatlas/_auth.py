@@ -72,7 +72,7 @@ class TokenManager:
         return manager
 
     def get_bearer_token(self) -> str:
-        """Return an access token valid for at least `REFRESH_MARGIN` seconds, if refreshable."""
+        """Return an access token valid for at least `refresh_margin` seconds, if refreshable."""
         with self._lock:
             if self._access_token is None:
                 raise AuthenticationError(
