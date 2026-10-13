@@ -132,7 +132,7 @@ class AgriAtlasSession:
     def __repr__(self) -> str:
         return f"<AgriAtlasSession stac_url={self._client_config.stac_api_url!r}, username=TBD>"
 
-    def login(self, username: str | None = None, password: str | None = None) -> Client:
+    def login(self, username: str, password: str) -> Client:
         # before login, clear the clients and recreate them
         self.close()
         self._http_session = requests.Session()
