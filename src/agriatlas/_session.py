@@ -89,6 +89,10 @@ def _asset_filenames(assets: dict[str, pystac.Asset]) -> dict[str, str]:
     The filename is the last segment of the href's URL path. When it is empty or invalid, the
     asset key is used instead; when several assets share it, it is prefixed with the asset key.
     """
+    # TODO: keep the folder tree of nested assets (e.g. .../2024/01/ndvi.tif) instead of flattening
+    # it. Mirror each URL path below the common prefix of all the item's assets (not only the
+    # selected ones, so the layout doesn't depend on `roles`), and reject `.`/`..` segments and
+    # any path that resolves outside the target directory. Check a real nested item first.
     names = {}
     for key, asset in assets.items():
         name = _href_filename(asset.href)
