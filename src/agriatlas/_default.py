@@ -26,19 +26,18 @@ def login(
     if client_config is None:
         client_config = AgriAtlasConfig.from_env()
 
-    # Note: Should this section be protected by try/except?
-    # Create a new session
-    session = AgriAtlasSession(client_config=client_config)
-
     # Resolve credentials
     resolved_user, resolved_pass = resolve_credentials(
         username=username, password=password, interactive=interactive
     )
 
-    # login with credentials
+    # Create a new session and log in. On failure, the session closes itself and the previous
+    # default session is kept
+    session = AgriAtlasSession(client_config=client_config)
     session.login(username=resolved_user, password=resolved_pass)
 
-    # Check if any previous session exists
+    # Check if any previous session exists and replace with a new valid session
+    # This storing of the default session is done only if the login was successful
     if _default_logged_session is not None:
         # Close the default previous session
         _default_logged_session.close()

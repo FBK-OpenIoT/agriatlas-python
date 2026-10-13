@@ -138,22 +138,27 @@ class AgriAtlasSession:
         self._http_session = requests.Session()
         # all the login logic is handled here
 
-        # Here all the login logic is handled with Username/Password
-        # token manager here!
-        self._token_manager = TokenManager.password_grant(
-            config=self._client_config,
-            http_session=self._http_session,
-            username=username,
-            password=password,
-        )
+        try:
+            # Here all the login logic is handled with Username/Password
+            # token manager here!
+            self._token_manager = TokenManager.password_grant(
+                config=self._client_config,
+                http_session=self._http_session,
+                username=username,
+                password=password,
+            )
 
-        # Create the stack client with auth
-        self._stac_client = Client.open(
-            url=self._client_config.stac_api_url,
-            stac_io=AgriAtlasStacApiIO(),  # Capture HTTP errors
-            request_modifier=self._prepare_authenticated_request,
-            timeout=self._client_config.timeout,
-        )
+            # Create the stack client with auth
+            self._stac_client = Client.open(
+                url=self._client_config.stac_api_url,
+                stac_io=AgriAtlasStacApiIO(),  # Capture HTTP errors
+                request_modifier=self._prepare_authenticated_request,
+                timeout=self._client_config.timeout,
+            )
+        except BaseException:
+            # Don't leak the HTTP session or stay half logged in if the login fails
+            self.close()
+            raise
 
         return self._stac_client
 

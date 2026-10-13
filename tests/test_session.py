@@ -1,11 +1,46 @@
 import pystac
 import pytest
 import requests
+import responses
 
 import agriatlas
-from agriatlas import AgriAtlasConfig, AgriAtlasSession, NotLoggedInError
+from agriatlas import AgriAtlasConfig, AgriAtlasSession, AuthenticationError, NotLoggedInError
 
 TRUSTED_URL = "https://www.agriatlas.eu/files/field.parquet"
+INVALID_GRANT = {"error": "invalid_grant", "error_description": "Invalid user credentials"}
+
+
+# Test that a failed login closes the HTTP session it created and leaves the session logged out
+@responses.activate
+def test_login_failure_closes_http_session(monkeypatch):
+    config = AgriAtlasConfig()
+    responses.post(config.token_url, status=401, json=INVALID_GRANT)
+    closed = []
+    monkeypatch.setattr(requests.Session, "close", lambda self: closed.append(self))
+
+    session = AgriAtlasSession(config)
+    with pytest.raises(AuthenticationError):
+        session.login("user", "wrong")
+
+    assert len(closed) == 1
+    assert session._http_session is None
+    assert session._token_manager is None
+    with pytest.raises(NotLoggedInError):
+        session.get_client()
+
+
+# Test that a failed agriatlas.login() keeps the previous default session
+@responses.activate
+def test_default_login_failure_keeps_previous_session(monkeypatch):
+    config = AgriAtlasConfig()
+    responses.post(config.token_url, status=401, json=INVALID_GRANT)
+    previous = AgriAtlasSession(config)
+    monkeypatch.setattr(agriatlas._default, "_default_logged_session", previous)
+
+    with pytest.raises(AuthenticationError):
+        agriatlas.login("user", "wrong", client_config=config, interactive=False)
+
+    assert agriatlas.current_session() is previous
 
 
 # Test if not logged in
