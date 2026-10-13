@@ -112,10 +112,27 @@ def current_session() -> AgriAtlasSession | None:
 
 
 def download_asset(asset: pystac.Asset, target: str | Path, *, verbose: bool = True) -> Path:
-    """Download an asset from AgriAtlas and place it in the target path.
+    """Download a single asset of an Item to the given file, using the default session.
 
-    Returns the target path. With `verbose=False`, the progress bar and pooch's log messages are
-    hidden. Raises NotLoggedInError if `login()` has not been called.
+    Missing parent directories are created. The download is verified against the asset's
+    `file:checksum` when the catalog provides it. An existing file is not downloaded again if its
+    checksum matches, or, without a checksum, if its size matches `file:size`; otherwise it is
+    replaced.
+
+    Args:
+        asset: The asset to download, e.g. `item.assets["<asset-key>"]`.
+        target: The path of the file to write, not a directory.
+        verbose: Whether to show the progress bar and the download log messages.
+
+    Returns:
+        The path of the downloaded file, as a `Path`.
+
+    Raises:
+        NotLoggedInError: If `login()` has not been called, or the server answers HTTP 401.
+        AuthenticationError: If the server answers HTTP 403, or the token cannot be refreshed.
+        NotTrustedHostError: If the asset is not on a trusted host. Nothing is sent.
+        AgriAtlasError: If the asset is not found (HTTP 404) or its checksum does not match. A
+            file that fails the checksum is discarded.
     """
     if _default_logged_session is not None:
         return _default_logged_session.download_asset(asset=asset, target=target, verbose=verbose)
@@ -130,12 +147,26 @@ def download(
     roles: Sequence[str] | None = ("data",),
     verbose: bool = True,
 ) -> dict[str, Path]:
-    """Download the assets of an Item into the target directory.
+    """Download the assets of an Item into a directory, using the default session.
 
-    Only assets with at least one of the given roles are downloaded; with `roles=None`, all the
-    assets are. Returns a dict mapping each asset key to its local path. With `verbose=False`, the
-    progress bars and pooch's log messages are hidden. Raises NotLoggedInError if `login()` has
-    not been called.
+    Each file is named after the last segment of the asset's URL path, without the query string.
+    When several assets share a name, the asset key is added as a prefix. Each asset is downloaded
+    and verified as in `download_asset()`, so files already present and complete are skipped.
+
+    Args:
+        item: The STAC Item whose assets to download.
+        target_path: The directory to download into. It is created if missing.
+        roles: Download only the assets with at least one of these roles. With `None`, download
+            all the assets.
+        verbose: Whether to show the progress bars and the download log messages.
+
+    Returns:
+        A dict mapping each downloaded asset key to its local `Path`.
+
+    Raises:
+        NotLoggedInError: If `login()` has not been called.
+        AgriAtlasError: If two assets would be written to the same file, before anything is
+            downloaded. Also any error from `download_asset()`.
     """
     if _default_logged_session is not None:
         return _default_logged_session.download(
