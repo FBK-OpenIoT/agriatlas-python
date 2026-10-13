@@ -1,23 +1,12 @@
-from unittest.mock import MagicMock
-
 import pystac
 import pytest
 import responses
 
-from agriatlas import AgriAtlasConfig, AgriAtlasSession, NotTrustedHostError
+from agriatlas import AgriAtlasConfig, NotTrustedHostError
 from agriatlas._auth_stac import AgriAtlasStacApiIO
 
 TRUSTED_URL = "https://www.agriatlas.eu/files/a.bin"
 UNTRUSTED_URL = "https://evil.example.com/files/a.bin"
-
-
-@pytest.fixture
-def session():
-    # Logged-in session with a fake token manager: no Keycloak involved
-    session = AgriAtlasSession(AgriAtlasConfig())
-    session._token_manager = MagicMock()
-    session._token_manager.get_auth_headers.return_value = {"Authorization": "Bearer T"}
-    return session
 
 
 # Test the default trusted hosts

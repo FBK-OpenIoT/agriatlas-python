@@ -266,8 +266,12 @@ class AgriAtlasSession:
                 raise AgriAtlasError(f"HTTP 404 - Asset not found at {asset.href}") from err
             raise
         except ValueError as err:
-            # pooch raises ValueError if the hash does not match, and discards the file
-            raise AgriAtlasError(f"Checksum mismatch for {asset.href}: {err}") from err
+            # pooch raises ValueError if the hash does not match, and discards the file. It also
+            # raises ValueError for other problems (e.g. an unsupported hash algorithm), so check
+            # the message to tell them apart
+            if expected_checksum is not None and "does not match" in str(err):
+                raise AgriAtlasError(f"Checksum mismatch for {asset.href}: {err}") from err
+            raise AgriAtlasError(f"Could not download {asset.href}: {err}") from err
         finally:
             pooch_logger.removeFilter(_drop_known_hash_hint)
             pooch_logger.removeFilter(_drop_below_warning)
