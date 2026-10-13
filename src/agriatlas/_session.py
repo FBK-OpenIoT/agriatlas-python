@@ -180,8 +180,14 @@ class AgriAtlasSession:
             return self._stac_client
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
 
+    def _require_login(self) -> None:
+        """Raise NotLoggedInError if not logged in."""
+        if self._token_manager is None:
+            raise NotLoggedInError("Not logged in to AgriAtlas: call login() first")
+
     def get_auth_headers(self) -> dict[str, str]:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
+        self._require_login()
         return self._token_manager.get_auth_headers()
 
     def _prepare_authenticated_request(self, request: requests.Request) -> None:
@@ -189,7 +195,7 @@ class AgriAtlasSession:
         self._client_config.check_trusted_host(request.url)
 
         # Add the authentication header
-        request.headers.update(self._token_manager.get_auth_headers())
+        request.headers.update(self.get_auth_headers())
 
     def download_asset(
         self, asset: pystac.Asset, target: str | Path, *, verbose: bool = True
@@ -200,6 +206,9 @@ class AgriAtlasSession:
         the expected checksum (or size, if the asset has no checksum) is not downloaded again.
         With `verbose=False`, the progress bar and pooch's log messages are hidden.
         """
+
+        # Fail early, even if the file is already present and would not be downloaded
+        self._require_login()
 
         # Never send the token outside the trusted hosts
         self._client_config.check_trusted_host(asset.href)
