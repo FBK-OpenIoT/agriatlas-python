@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`agriatlas` is a small Python library (Python >= 3.11, `src/` layout, built with `uv_build`) that gives an
-authenticated `pystac_client.Client` for the AgriAtlas STAC catalog, plus helpers to download Item assets.
-Authentication is a Keycloak password grant with automatic token refresh.
+- `agriatlas` is a small Python library (Python >= 3.11, `src/` layout, built with `uv_build`).
+- It gives an authenticated `pystac_client.Client` for the AgriAtlas STAC catalog, plus helpers to
+  download Item assets.
+- Authentication is a Keycloak password grant with automatic token refresh.
 
 ## Commands
 
@@ -19,68 +20,85 @@ uv run pytest --no-cov -q                                  # fast run without co
 uv run ruff check --fix && uv run ruff format              # lint + format (line length 100)
 ```
 
-Pre-commit runs ruff check/format, `uv-lock` (keeps `uv.lock` in sync with `pyproject.toml`), and basic
-file checks. The pytest pre-push hook is currently commented out.
+- Pre-commit runs ruff check/format, `uv-lock` (keeps `uv.lock` in sync with `pyproject.toml`), and
+  basic file checks.
+- The pytest pre-push hook is currently commented out.
 
 ## Architecture
 
 The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are internal modules.
 
-There are two layers:
+### Layers
 
-- **`_default.py`: global default session.** `login()` resolves credentials, creates an
-  `AgriAtlasSession`, logs it in, and only then replaces (and closes) the previous module-level
-  `_default_logged_session`. It returns the session's STAC client. `logout()`, `get_session()`,
-  `current_session()`, `download()` and `download_asset()` all operate on that global.
-- **`session.py`: `AgriAtlasSession`.** Owns one `requests.Session`, a `TokenManager` and the
-  `pystac_client.Client`. `login()` always calls `close()` first and rebuilds everything.
+- **`_default.py`: global default session.**
+  - `login()` resolves credentials, creates an `AgriAtlasSession`, logs it in, and only then
+    replaces (and closes) the previous module-level `_default_logged_session`. It returns the
+    session's STAC client.
+  - `logout()`, `get_session()`, `current_session()`, `download()` and `download_asset()` all
+    operate on that global.
+- **`session.py`: `AgriAtlasSession`.**
+  - Owns one `requests.Session`, a `TokenManager` and the `pystac_client.Client`.
+  - `login()` always calls `close()` first and rebuilds everything.
 
-How auth is wired into STAC requests:
+### Auth in STAC requests
 
-- `Client.open(..., request_modifier=session._prepare_authenticated_request, stac_io=AgriAtlasStacApiIO())`. Every
-  STAC request calls `TokenManager.get_auth_headers()`, which refreshes the access token under a lock
-  if it expires within `refresh_margin` seconds. Deadlines use `time.monotonic()`.
-- `auth_stac.AgriAtlasStacApiIO` subclasses pystac-client's `StacApiIO`. It turns an `APIError` whose
-  `__context__` is an `AgriAtlasError` back into that error, for example when a token refresh fails
-  or the host is not trusted inside the request modifier. It also maps HTTP 401/403 to `AuthenticationError`. This depends
-  on pystac-client internals, so re-check it when upgrading pystac-client.
+- `Client.open(..., request_modifier=session._prepare_authenticated_request,
+  stac_io=AgriAtlasStacApiIO())`.
+- Every STAC request calls `TokenManager.get_auth_headers()`, which refreshes the access token under
+  a lock if it expires within `refresh_margin` seconds. Deadlines use `time.monotonic()`.
+- `auth_stac.AgriAtlasStacApiIO` subclasses pystac-client's `StacApiIO`:
+  - It turns an `APIError` whose `__context__` is an `AgriAtlasError` back into that error, for
+    example when a token refresh fails or the host is not trusted inside the request modifier.
+  - It maps HTTP 401/403 to `AuthenticationError`.
+  - It depends on pystac-client internals, so re-check it when upgrading pystac-client.
 - `auth_utils.py` holds the Keycloak token POST (`request_access_token`), error parsing, expiry
-  computation, and `resolve_credentials`. The credential lookup order is: arguments, then
-  `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an interactive prompt (disabled by
-  `interactive=False`).
+  computation, and `resolve_credentials`.
+- Credential lookup order: arguments, then `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an
+  interactive prompt (disabled by `interactive=False`).
 
-Config: `AgriAtlasConfig` is a frozen dataclass. `from_env()` maps each field to the environment
-variable `AGRIATLAS_<FIELD_NAME_UPPER>`: `STAC_API_URL`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`,
-`KEYCLOAK_CLIENT_ID`, `TIMEOUT` and `TRUSTED_HOSTS` (comma-separated). Empty values are ignored. A new
-field gets an env override automatically, but non-string fields need explicit parsing in
-`from_env()`, as `timeout` has.
+### Config
 
-Trusted hosts: `AgriAtlasConfig.trusted_hosts` accepts a single host, a comma-separated string (which
-is how the env var works) or any collection of host names. `__post_init__` splits strings on commas
-and normalizes everything to a lowercase `frozenset`. `check_trusted_host(url)` compares
-the URL's exact hostname and raises `NotTrustedHostError`. It is called before the token is
-attached: in `AgriAtlasSession._prepare_authenticated_request` (every STAC request) and at the start of
-`download_asset`. Any new code path that sends the token must call it too. The Keycloak token URL is
-not checked: it comes from the config, not from catalog data.
+- `AgriAtlasConfig` is a frozen dataclass.
+- `from_env()` maps each field to the environment variable `AGRIATLAS_<FIELD_NAME_UPPER>`:
+  `STAC_API_URL`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `TIMEOUT` and
+  `TRUSTED_HOSTS` (comma-separated). Empty values are ignored.
+- A new field gets an env override automatically, but non-string fields need explicit parsing in
+  `from_env()`, as `timeout` has.
 
-Exceptions: `AgriAtlasError` is the base class. `AuthenticationError` and
-`NotTrustedHostError` derive from it, and `NotLoggedInError` derives from
-`AuthenticationError`. Raise these classes, not raw `requests`/pystac errors, at API boundaries.
-`AgriAtlasStacApiIO` unwraps any `AgriAtlasError` that pystac-client wrapped in an `APIError`.
+### Trusted hosts
 
-Downloads: `download(item, dir, roles=("data",))` picks the assets that have any matching role
-(`roles=None` downloads all of them). It names each file after the last segment of `asset.href`.
-`download_asset()` downloads with `pooch.retrieve` (its own `requests.get`, not the session's
-`requests.Session`), passing the auth headers and the config timeout. Pooch writes to a temp file,
-creates missing directories, and shows a tqdm progress bar. The STAC `file:checksum` (hex multihash)
-is converted by `multihash_to_pooch_hash()` and passed as `known_hash`, so pooch verifies each
-download; a mismatch becomes `AgriAtlasError`. An existing file is skipped if its checksum matches,
-or, with no checksum, if its size matches `file:size` (or `file:size` is missing). Otherwise it is
-deleted first, because pooch never re-downloads a file that exists without a hash. HTTP 401, 403 and
-404 become `NotLoggedInError`, `AuthenticationError` and `AgriAtlasError`. During each download, a
-temporary filter on pooch's logger always drops its "known_hash" hint, and `verbose=False` adds one
-that drops all INFO messages and disables the progress bar. Use filters, not `setLevel()`: pooch
-creates its logger outside the logging manager, so `setLevel()` doesn't reset its level cache.
+- `AgriAtlasConfig.trusted_hosts` takes a host, a comma-separated string or a collection;
+  `__post_init__` normalizes it to a lowercase `frozenset`.
+- `check_trusted_host(url)` matches the exact hostname or raises `NotTrustedHostError`. It runs
+  before the token is attached, in `_prepare_authenticated_request` and `download_asset`. Any new
+  code path that sends the token must call it too.
+- The Keycloak token URL is not checked (it comes from config, not catalog data).
+
+### Exceptions
+
+- `AgriAtlasError` is the base class.
+- `AuthenticationError` and `NotTrustedHostError` derive from it, and `NotLoggedInError` derives from
+  `AuthenticationError`.
+- Raise these classes, not raw `requests`/pystac errors, at API boundaries.
+
+### Downloads
+
+- `download(item, dir, roles=("data",))` picks the assets that have any matching role (`roles=None`
+  downloads all of them). It names each file after the last segment of `asset.href`.
+- `download_asset()` downloads with `pooch.retrieve` (its own `requests.get`, not the session's
+  `requests.Session`), passing the auth headers and the config timeout.
+- Pooch writes to a temp file, creates missing directories, and shows a tqdm progress bar.
+- The STAC `file:checksum` (hex multihash) is converted by `multihash_to_pooch_hash()` and passed as
+  `known_hash`, so pooch verifies each download; a mismatch becomes `AgriAtlasError`.
+- An existing file is skipped if its checksum matches, or, with no checksum, if its size matches
+  `file:size` (or `file:size` is missing). Otherwise it is deleted first, because pooch never
+  re-downloads a file that exists without a hash.
+- HTTP 401, 403 and 404 become `NotLoggedInError`, `AuthenticationError` and `AgriAtlasError`.
+- Pooch logging: during each download, a temporary filter on pooch's logger always drops its
+  "known_hash" hint, and `verbose=False` adds one that drops all INFO messages and disables the
+  progress bar.
+  - Use filters, not `setLevel()`: pooch creates its logger outside the logging manager, so
+    `setLevel()` doesn't reset its level cache.
 
 ## Conventions
 
