@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pystac
 import pytest
 import responses
@@ -175,3 +177,25 @@ def test_allow_http_env_invalid(monkeypatch):
     monkeypatch.setenv("AGRIATLAS_ALLOW_HTTP", "maybe")
     with pytest.raises(AgriAtlasError, match="AGRIATLAS_ALLOW_HTTP"):
         AgriAtlasConfig.from_env()
+
+
+# Test that a download into a directory is named after the URL path
+@responses.activate
+def test_download_into_directory(session, tmp_path):
+    responses.get(TRUSTED_URL, body=b"abc")
+    path = session.download_asset(pystac.Asset(TRUSTED_URL), tmp_path / "data")
+    assert path == tmp_path / "data" / "a.bin"
+    assert path.read_bytes() == b"abc"
+
+
+# Test that download() writes a filename without extension as a file, not a directory
+@responses.activate
+def test_download_item_filename_without_extension(session, tmp_path):
+    url = "https://www.agriatlas.eu/files/COG"
+    responses.get(url, body=b"abc")
+    item = pystac.Item("i", None, None, datetime(2024, 1, 1), {})
+    item.add_asset("data", pystac.Asset(url, roles=["data"]))
+
+    paths = session.download(item, tmp_path)
+    assert paths == {"data": tmp_path / "COG"}
+    assert paths["data"].read_bytes() == b"abc"

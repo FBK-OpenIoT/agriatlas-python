@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
@@ -82,6 +83,31 @@ def _href_filename(href: str) -> str:
     path = unquote(urlparse(href).path)
     # PurePosixPath drops a trailing slash, which means the URL names no file
     return "" if path.endswith("/") else PurePosixPath(path).name
+
+
+def _asset_target_path(target: str | Path, href: str, as_file: bool | None = None) -> Path:
+    """Return the file to download `href` to.
+
+    With `as_file=None`, `target` is the file if it has an extension, unless it is an existing
+    directory or ends with a path separator. `as_file=True` and `as_file=False` force a file or a
+    directory. In a directory, the file is named after the last segment of the href's URL path.
+    """
+    path = Path(target)
+    if as_file is None:
+        # Check the string: Path() drops the trailing separator
+        separators = tuple(sep for sep in (os.sep, os.altsep) if sep)
+        as_file = bool(path.suffix) and not (path.is_dir() or str(target).endswith(separators))
+
+    if as_file:
+        # path to a file
+        return path
+
+    name = _href_filename(href)
+    if name in ("", ".", ".."):
+        raise AgriAtlasError(f"Cannot name the file to download from {href}: pass a file path")
+
+    # append the filename to the path
+    return path / name
 
 
 def _asset_filenames(assets: dict[str, pystac.Asset]) -> dict[str, str]:
@@ -232,13 +258,22 @@ class AgriAtlasSession:
         request.headers.update(self.get_auth_headers())
 
     def download_asset(
-        self, asset: pystac.Asset, target: str | Path, *, verbose: bool = True
+        self,
+        asset: pystac.Asset,
+        target: str | Path,
+        *,
+        as_file: bool | None = None,
+        verbose: bool = True,
     ) -> Path:
         """Download an asset from AgriAtlas and place it in the target path.
 
-        Missing parent directories are created. Returns the target path. An existing file with
-        the expected checksum (or size, if the asset has no checksum) is not downloaded again.
-        With `verbose=False`, the progress bar and pooch's log messages are hidden.
+        `target` is the file to write if it has an extension, otherwise a directory (also if it
+        exists as one or ends with a path separator), and the file is then named after the last
+        segment of the asset's URL path. `as_file=True` or `as_file=False` forces a file or a
+        directory. Missing parent directories are created. Returns the path
+        of the file. An existing file with the expected checksum (or size, if the asset has no
+        checksum) is not downloaded again. With `verbose=False`, the progress bar and pooch's log
+        messages are hidden.
         """
 
         # Fail early, even if the file is already present and would not be downloaded
@@ -247,7 +282,7 @@ class AgriAtlasSession:
         # Never send the token outside the trusted hosts
         self._client_config.check_trusted_host(asset.href)
 
-        target = Path(target)
+        target = _asset_target_path(target, asset.href, as_file)
 
         # Get the expected asset size and checksum
         expected_size = asset.extra_fields.get("file:size")
@@ -338,8 +373,9 @@ class AgriAtlasSession:
 
         assets_path = {}
         for key, filename in _asset_filenames(assets).items():
+            # The filename may have no extension: don't let download_asset() take it as a directory
             assets_path[key] = self.download_asset(
-                assets[key], target_path / filename, verbose=verbose
+                assets[key], target_path / filename, as_file=True, verbose=verbose
             )
 
         return assets_path

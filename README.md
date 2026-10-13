@@ -83,6 +83,16 @@ To download a single asset to a given file:
 path = agriatlas.download_asset(item.assets["<asset-key>"], "./data/file.parquet")
 ```
 
+A target without an extension is a directory, and the file keeps the name from the asset's URL
+(without the query string):
+
+```python
+path = agriatlas.download_asset(item.assets["<asset-key>"], "./data")  # ./data/<name from URL>
+```
+
+An existing directory, or a path ending with `/`, is always a directory. Pass `as_file=True` to
+write to a file without an extension, or `as_file=False` for a directory whose name has a dot.
+
 - Downloads are verified against the asset's `file:checksum` when the catalog provides it.
 - Files already present with the expected checksum (or size, if there is no checksum) are not
   downloaded again.
@@ -148,7 +158,7 @@ These work on a default session, created by `login()` and shared by the other fu
 | `get_session()` | Return the default `AgriAtlasSession`. Raises `NotLoggedInError` if not logged in. |
 | `current_session()` | Return the default `AgriAtlasSession`, or `None` if not logged in. |
 | `download(item, target_path, *, roles=("data",), verbose=True)` | Download the assets of an Item into a directory. Returns `{asset_key: Path}`. |
-| `download_asset(asset, target, *, verbose=True)` | Download one asset to a file. Returns its `Path`. |
+| `download_asset(asset, target, *, as_file=None, verbose=True)` | Download one asset to a file, or into a directory if `target` has no extension. Returns its `Path`. |
 
 ### Configuration
 

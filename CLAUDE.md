@@ -101,6 +101,12 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
   - `_asset_filenames()` names each file after the last segment of the href's URL path, without
     the query string. It falls back to the asset key when that segment is empty, and prefixes the
     key when several assets share a name. It raises `AgriAtlasError` rather than overwrite a file.
+- `download_asset()` takes a file or a directory as `target`, resolved by `_asset_target_path()`:
+  - With `as_file=None`, it is a file only if it has an extension and is neither an existing
+    directory nor a string ending with a path separator (check the string: `Path()` drops the
+    trailing slash). In a directory, the file is named with `_href_filename()`.
+  - `as_file=True`/`False` forces a file/directory. `download()` passes `as_file=True`, because
+    the names from `_asset_filenames()` may have no extension.
 - `download_asset()` downloads with `pooch.retrieve` (its own `requests.get`, not the session's
   `requests.Session`), passing the auth headers and the config timeout.
 - Pooch writes to a temp file, creates missing directories, and shows a tqdm progress bar.

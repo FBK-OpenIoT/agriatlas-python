@@ -111,17 +111,28 @@ def current_session() -> AgriAtlasSession | None:
     return _default_logged_session
 
 
-def download_asset(asset: pystac.Asset, target: str | Path, *, verbose: bool = True) -> Path:
-    """Download a single asset of an Item to the given file, using the default session.
+def download_asset(
+    asset: pystac.Asset,
+    target: str | Path,
+    *,
+    as_file: bool | None = None,
+    verbose: bool = True,
+) -> Path:
+    """Download a single asset of an Item to the given file or directory, using the default session.
 
-    Missing parent directories are created. The download is verified against the asset's
-    `file:checksum` when the catalog provides it. An existing file is not downloaded again if its
-    checksum matches, or, without a checksum, if its size matches `file:size`; otherwise it is
-    replaced.
+    In a directory, the file is named after the last segment of the asset's URL path, without the
+    query string. Missing parent directories are created. The download is verified against the
+    asset's `file:checksum` when the catalog provides it. An existing file is not downloaded again
+    if its checksum matches, or, without a checksum, if its size matches `file:size`; otherwise it
+    is replaced.
 
     Args:
         asset: The asset to download, e.g. `item.assets["<asset-key>"]`.
-        target: The path of the file to write, not a directory.
+        target: The path of the file to write if it has an extension (e.g.
+            `"./data/file.parquet"`), otherwise of a directory to write it into (e.g. `"./data"`).
+            An existing directory, or a path ending with a separator, is always a directory.
+        as_file: `True` to always take `target` as the file (e.g. a name without extension),
+            `False` to always take it as a directory, `None` to decide as described above.
         verbose: Whether to show the progress bar and the download log messages.
 
     Returns:
@@ -132,10 +143,13 @@ def download_asset(asset: pystac.Asset, target: str | Path, *, verbose: bool = T
         AuthenticationError: If the server answers HTTP 403, or the token cannot be refreshed.
         NotTrustedHostError: If the asset is not on a trusted host. Nothing is sent.
         AgriAtlasError: If the asset is not found (HTTP 404) or its checksum does not match. A
-            file that fails the checksum is discarded.
+            file that fails the checksum is discarded. Also if `target` is a directory and the
+            asset's URL path names no file.
     """
     if _default_logged_session is not None:
-        return _default_logged_session.download_asset(asset=asset, target=target, verbose=verbose)
+        return _default_logged_session.download_asset(
+            asset=asset, target=target, as_file=as_file, verbose=verbose
+        )
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
 

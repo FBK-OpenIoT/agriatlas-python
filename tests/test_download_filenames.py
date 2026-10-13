@@ -2,7 +2,9 @@ import pystac
 import pytest
 
 from agriatlas import AgriAtlasError
-from agriatlas._session import _asset_filenames
+from agriatlas._session import _asset_filenames, _asset_target_path
+
+HREF = "https://www.agriatlas.eu/files/field.parquet?X-Amz-Signature=abc"
 
 
 def _assets(**hrefs: str) -> dict[str, pystac.Asset]:
@@ -62,3 +64,40 @@ def test_remaining_collision_raises():
     )
     with pytest.raises(AgriAtlasError, match="same file"):
         _asset_filenames(assets)
+
+
+# Test that a target with an extension is the file to write
+def test_target_with_extension_is_file(tmp_path):
+    assert _asset_target_path(tmp_path / "out.bin", HREF) == tmp_path / "out.bin"
+    assert _asset_target_path(str(tmp_path / "missing" / "out.bin"), HREF) == (
+        tmp_path / "missing" / "out.bin"
+    )
+
+
+# Test that a target without an extension is a directory, even if missing
+def test_target_without_extension_is_directory(tmp_path):
+    assert _asset_target_path(tmp_path / "data", HREF) == tmp_path / "data" / "field.parquet"
+
+
+# Test that a trailing separator or an existing directory wins over the extension
+def test_target_directory_with_extension(tmp_path):
+    expected = tmp_path / "data.v2" / "field.parquet"
+    assert _asset_target_path(f"{tmp_path}/data.v2/", HREF) == expected
+
+    (tmp_path / "data.v2").mkdir()
+    assert _asset_target_path(tmp_path / "data.v2", HREF) == expected
+
+
+# Test that a directory target raises if the URL path names no file
+@pytest.mark.parametrize("href", ["https://www.agriatlas.eu/files/", "https://www.agriatlas.eu"])
+def test_target_directory_without_filename_raises(tmp_path, href):
+    with pytest.raises(AgriAtlasError, match="pass a file path"):
+        _asset_target_path(tmp_path, href)
+
+
+# Test that as_file forces a file or a directory
+def test_target_as_file_forced(tmp_path):
+    assert _asset_target_path(tmp_path / "data", HREF, as_file=True) == tmp_path / "data"
+    assert _asset_target_path(tmp_path / "x.v2", HREF, as_file=False) == (
+        tmp_path / "x.v2" / "field.parquet"
+    )
