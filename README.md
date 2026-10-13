@@ -81,6 +81,19 @@ stac_client = agriatlas.login(client_config=config)
 
 The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. The full PySTAC Client Documentation can be found [HERE](https://pystac-client.readthedocs.io/).
 
+## Getting started notebook
+
+[`examples/getting_started.ipynb`](examples/getting_started.ipynb) walks through the whole flow in
+Jupyter: it installs the library, logs in, opens an item and lists its assets, then downloads the
+data files. To use it:
+
+1. Open it in Jupyter, JupyterLab or VS Code.
+2. Set `COLLECTION_ID` and `ITEM_ID` to the product you want to open.
+3. Run the cells. `login()` prompts for your username and password, unless `AGRIATLAS_USERNAME`
+   and `AGRIATLAS_PASSWORD` are set.
+
+The files are saved in `./data`, next to the notebook.
+
 ## Python API
 
 Everything below is importable from `agriatlas`. Each function and method has a docstring with the
