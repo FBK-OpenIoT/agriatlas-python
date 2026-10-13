@@ -89,6 +89,36 @@ class TokenManager:
         """Return the Authorization header with a valid access token."""
         return {"Authorization": f"Bearer {self.get_bearer_token()}"}
 
+    def get_user_info(self) -> dict[str, Any]:
+        """Return the logged-in user's information from the Keycloak userinfo endpoint.
+
+        The keys depend on the Keycloak scopes, e.g. `sub`, `preferred_username`, `name` and
+        `email`.
+        """
+        failure = "Could not retrieve the AgriAtlas user information"
+
+        # Get the headers first: they raise if the manager is closed, and refresh the token
+        headers = self.get_auth_headers()
+        if self._http_session is None:
+            raise AuthenticationError(f"{failure}: no HTTP session; call agriatlas.login() again")
+
+        try:
+            response = self._http_session.get(
+                self._config.userinfo_url, headers=headers, timeout=self._config.timeout
+            )
+        except requests.RequestException as err:
+            raise AuthenticationError(
+                f"{failure}: could not reach {self._config.userinfo_url} ({type(err).__name__})"
+            ) from err
+
+        # Handle keycloak error responses
+        if not response.ok:
+            raise AuthenticationError(f"{failure}: {parse_keycloak_error(response)}")
+        try:
+            return response.json()
+        except ValueError as err:
+            raise AuthenticationError(f"{failure}: Keycloak returned an invalid response") from err
+
     def close(self) -> None:
         """Forget the tokens and drop the HTTP session.
 

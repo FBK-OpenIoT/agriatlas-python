@@ -6,6 +6,7 @@ import logging
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 import pooch
@@ -122,15 +123,21 @@ class AgriAtlasSession:
     _http_session: requests.Session | None
     _stac_client: Client | None
     _token_manager: TokenManager | None
+    _username: str | None
 
     def __init__(self, client_config: AgriAtlasConfig) -> None:
         self._client_config = client_config
         self._http_session = None
         self._stac_client = None
         self._token_manager = None
+        self._username = None
 
     def __repr__(self) -> str:
-        return f"<AgriAtlasSession stac_url={self._client_config.stac_api_url!r}, username=TBD>"
+        # Use the username stored at login: a repr must not send requests
+        username = repr(self._username) if self._token_manager is not None else "Not Logged"
+        return (
+            f"<AgriAtlasSession stac_url={self._client_config.stac_api_url!r}, username={username}>"
+        )
 
     def login(self, username: str, password: str) -> Client:
         # before login, clear the clients and recreate them
@@ -147,6 +154,9 @@ class AgriAtlasSession:
                 username=username,
                 password=password,
             )
+
+            # Store the username for the repr: the one Keycloak reports, or the one used to log in
+            self._username = self._fetch_username(default=username)
 
             # Create the stack client with auth
             self._stac_client = Client.open(
@@ -177,6 +187,8 @@ class AgriAtlasSession:
         if self._stac_client is not None:
             self._stac_client = None
 
+        self._username = None
+
     def get_client(self):
         if self._stac_client:
             return self._stac_client
@@ -191,6 +203,25 @@ class AgriAtlasSession:
         """Return ``{"Authorization": "Bearer ..."}`` with a valid token, e.g. for GDAL."""
         self._require_login()
         return self._token_manager.get_auth_headers()
+
+    def _fetch_username(self, default: str) -> str:
+        """Return the `preferred_username` from Keycloak's user info, or `default` if unavailable.
+
+        The user info is only cosmetic here, so a failure doesn't fail the login.
+        """
+        try:
+            username = self.get_user_info().get("preferred_username")
+        except AuthenticationError as err:
+            logger.warning("Could not retrieve the AgriAtlas user info: %s", err)
+            return default
+        return username if isinstance(username, str) and username else default
+
+    def get_user_info(self) -> dict[str, Any]:
+        """Return the logged-in user's information from Keycloak, e.g. `preferred_username`,
+        `name` and `email`.
+        """
+        self._require_login()
+        return self._token_manager.get_user_info()
 
     def _prepare_authenticated_request(self, request: requests.Request) -> None:
         # Never send the token outside the trusted hosts

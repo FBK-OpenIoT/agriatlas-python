@@ -46,6 +46,11 @@ class AgriAtlasConfig:
         base = self.keycloak_url.rstrip("/")
         return f"{base}/realms/{self.keycloak_realm}/protocol/openid-connect/token"
 
+    @property
+    def userinfo_url(self) -> str:
+        base = self.keycloak_url.rstrip("/")
+        return f"{base}/realms/{self.keycloak_realm}/protocol/openid-connect/userinfo"
+
     def is_trusted(self, url: str) -> bool:
         """Return True if the host of `url` is one of the trusted hosts."""
         host = urlparse(url).hostname

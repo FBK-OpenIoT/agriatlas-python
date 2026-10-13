@@ -77,3 +77,50 @@ def test_download_asset_not_logged_in(tmp_path):
 
     with pytest.raises(NotLoggedInError):
         session.download_asset(pystac.Asset(href=TRUSTED_URL), target)
+
+
+# Test that get_user_info() on a session that is not logged in raises NotLoggedInError
+def test_get_user_info_not_logged_in():
+    with pytest.raises(NotLoggedInError):
+        AgriAtlasSession(AgriAtlasConfig()).get_user_info()
+
+
+TOKENS = {"access_token": "A", "expires_in": 300, "refresh_token": "R"}
+
+
+@pytest.fixture
+def no_stac(monkeypatch):
+    # login() opens the STAC client: skip it, so only Keycloak is mocked
+    monkeypatch.setattr("agriatlas._session.Client.open", lambda *args, **kwargs: object())
+
+
+# Test the repr of a session that is not logged in
+def test_repr_not_logged_in():
+    assert "username=Not Logged" in repr(AgriAtlasSession(AgriAtlasConfig()))
+
+
+# Test that the repr shows the username from Keycloak's user info, and Not Logged after close()
+@responses.activate
+def test_repr_username_from_user_info(no_stac):
+    config = AgriAtlasConfig()
+    responses.post(config.token_url, json=TOKENS)
+    responses.get(config.userinfo_url, json={"preferred_username": "keycloak-user"})
+    session = AgriAtlasSession(config)
+
+    session.login("user", "secret")
+    assert "username='keycloak-user'" in repr(session)
+
+    session.close()
+    assert "username=Not Logged" in repr(session)
+
+
+# Test that a user info failure doesn't fail the login, and the login username is shown instead
+@responses.activate
+def test_repr_username_without_user_info(no_stac):
+    config = AgriAtlasConfig()
+    responses.post(config.token_url, json=TOKENS)
+    responses.get(config.userinfo_url, status=500)
+    session = AgriAtlasSession(config)
+
+    session.login("user", "secret")
+    assert "username='user'" in repr(session)

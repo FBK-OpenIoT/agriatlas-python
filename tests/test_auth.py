@@ -61,3 +61,29 @@ def test_password_grant_without_access_token():
 
     with pytest.raises(AuthenticationError, match="no access token"):
         TokenManager.password_grant(config, requests.Session(), "user", "secret")
+
+
+# Test that get_user_info() calls the userinfo endpoint with the access token
+@responses.activate
+def test_get_user_info():
+    config = AgriAtlasConfig()
+    responses.get(config.userinfo_url, json={"preferred_username": "user"})
+    manager = TokenManager("T", config=config, http_session=requests.Session())
+
+    assert manager.get_user_info() == {"preferred_username": "user"}
+    assert responses.calls[0].request.headers["Authorization"] == "Bearer T"
+
+
+# Test that a Keycloak error on userinfo raises AuthenticationError with its description
+@responses.activate
+def test_get_user_info_error():
+    config = AgriAtlasConfig()
+    responses.get(
+        config.userinfo_url,
+        status=401,
+        json={"error": "invalid_token", "error_description": "Token verification failed"},
+    )
+    manager = TokenManager("T", config=config, http_session=requests.Session())
+
+    with pytest.raises(AuthenticationError, match="Token verification failed"):
+        manager.get_user_info()

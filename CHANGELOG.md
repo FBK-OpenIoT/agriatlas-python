@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the progress bar and the download log messages.
 - HTTP 401, 403 and 404 on download raise `NotLoggedInError`, `AuthenticationError` and
   `AgriAtlasError`.
+- `AgriAtlasSession.get_user_info()`: the logged-in user's information from the Keycloak userinfo
+  endpoint (e.g. `preferred_username`, `name`, `email`).
 - Automatic access token refresh before every STAC request and download.
 - Trusted hosts: the access token is only sent to the hosts in `AgriAtlasConfig.trusted_hosts`
   (default `www.agriatlas.eu` and `minio.services.irritre.openiotlab.eu`, overridable with the

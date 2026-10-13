@@ -40,7 +40,10 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
     operate on that global.
 - **`_session.py`: `AgriAtlasSession`.**
   - Owns one `requests.Session`, a `TokenManager` and the `pystac_client.Client`.
-  - `login()` always calls `close()` first and rebuilds everything.
+  - `login()` always calls `close()` first and rebuilds everything. On failure it closes itself.
+  - After the password grant, `login()` fetches Keycloak's user info once and stores
+    `preferred_username` for the `repr` (falling back to the login username if that request fails).
+    `__repr__` must never send a request.
 
 ### Auth in STAC requests
 
@@ -75,7 +78,7 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
 - `check_trusted_host(url)` matches the exact hostname or raises `NotTrustedHostError`. It runs
   before the token is attached, in `_prepare_authenticated_request` and `download_asset`. Any new
   code path that sends the token must call it too.
-- The Keycloak token URL is not checked (it comes from config, not catalog data).
+- The Keycloak token and userinfo URLs are not checked (they come from config, not catalog data).
 
 ### Exceptions
 

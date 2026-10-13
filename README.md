@@ -27,6 +27,11 @@ Downloads are verified against the asset's `file:checksum` when the catalog prov
 already present with the expected checksum (or size, if there is no checksum) are not downloaded
 again.
 
+To check which account you are logged in with, ask Keycloak for the user information:
+```python
+info = agriatlas.get_session().get_user_info()  # e.g. {"preferred_username": ..., "email": ...}
+```
+
 Downloads show a progress bar and log messages. Pass `verbose=False` to hide them, e.g. in scripts:
 ```python
 files = agriatlas.download(item, "./data", verbose=False)
