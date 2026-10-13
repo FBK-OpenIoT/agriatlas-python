@@ -146,9 +146,6 @@ class AgriAtlasSession:
             username=username,
             password=password,
         )
-        # Forget password by deallocating it!
-        password = ""
-        del password
 
         # Create the stack client with auth
         self._stac_client = Client.open(
