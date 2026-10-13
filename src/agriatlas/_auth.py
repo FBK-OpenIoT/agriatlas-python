@@ -20,6 +20,7 @@ class TokenManager:
     The password is used once, for the password grant in `password_grant()`, and is not kept.
     """
 
+    _access_token: str | None
     _http_session: requests.Session | None
 
     def __init__(
@@ -73,6 +74,10 @@ class TokenManager:
     def get_bearer_token(self) -> str:
         """Return an access token valid for at least `REFRESH_MARGIN` seconds, if refreshable."""
         with self._lock:
+            if self._access_token is None:
+                raise AuthenticationError(
+                    "The AgriAtlas session is closed: call agriatlas.login() again"
+                )
             expiring = (
                 self._expires_at is not None
                 and time.monotonic() + self._refresh_margin >= self._expires_at
@@ -85,14 +90,16 @@ class TokenManager:
         """Return the Authorization header with a valid access token."""
         return {"Authorization": f"Bearer {self.get_bearer_token()}"}
 
-    def close(self):
+    def close(self) -> None:
+        """Forget the tokens and drop the HTTP session.
+
+        The HTTP session belongs to whoever passed it in (the AgriAtlasSession), which closes it.
+        """
         self._access_token = None
         self._expires_at = 0
         self._refresh_token = None
         self._refresh_expires_at = 0
-        if self._http_session is not None:
-            self._http_session.close()
-            self._http_session = None
+        self._http_session = None
 
     def _store_tokens(self, data: dict[str, Any]) -> None:
         """Locally store the access token, refresh token, and their expiration times."""
