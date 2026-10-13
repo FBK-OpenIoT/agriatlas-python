@@ -13,7 +13,7 @@ def parse_keycloak_error(response: requests.Response) -> str:
         message = body.get("error_description") or body.get("error")
         if message:
             return str(message)
-    return f"http_session {response.status_code}"
+    return f"HTTP {response.status_code}"
 
 
 def compute_token_expiration_deadline(now: float, seconds: Any) -> float | None:
