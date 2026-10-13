@@ -22,7 +22,7 @@ uv run ruff check --fix && uv run ruff format              # lint + format (line
 
 - Pre-commit runs ruff check/format, `uv-lock` (keeps `uv.lock` in sync with `pyproject.toml`), and
   basic file checks.
-- The pytest pre-push hook is currently commented out.
+- A pre-push hook runs `uv run pytest -q --no-cov`, so a failing test blocks `git push`.
 
 ## Architecture
 
