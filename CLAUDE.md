@@ -87,7 +87,10 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
 ### Downloads
 
 - `download(item, dir, roles=("data",))` picks the assets that have any matching role (`roles=None`
-  downloads all of them). It names each file after the last segment of `asset.href`.
+  downloads all of them).
+  - `_asset_filenames()` names each file after the last segment of the href's URL path, without
+    the query string. It falls back to the asset key when that segment is empty, and prefixes the
+    key when several assets share a name. It raises `AgriAtlasError` rather than overwrite a file.
 - `download_asset()` downloads with `pooch.retrieve` (its own `requests.get`, not the session's
   `requests.Session`), passing the auth headers and the config timeout.
 - Pooch writes to a temp file, creates missing directories, and shows a tqdm progress bar.

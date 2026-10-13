@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from collections.abc import Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlparse
 
 import pooch
 import pystac
@@ -69,6 +71,40 @@ def multihash_to_pooch_hash(checksum: str | None) -> str | None:
         logger.warning("Ignoring unsupported file:checksum %r", checksum)
         return None
     return f"{_MULTIHASH_CODES[code]}:{digest.hex()}"
+
+
+def _href_filename(href: str) -> str:
+    """Return the last segment of the URL path, without query string or fragment.
+
+    Percent-encoded characters are decoded, so an encoded slash starts a new segment.
+    """
+    path = unquote(urlparse(href).path)
+    # PurePosixPath drops a trailing slash, which means the URL names no file
+    return "" if path.endswith("/") else PurePosixPath(path).name
+
+
+def _asset_filenames(assets: dict[str, pystac.Asset]) -> dict[str, str]:
+    """Map each asset key to the local filename to download it to.
+
+    The filename is the last segment of the href's URL path. When it is empty or invalid, the
+    asset key is used instead; when several assets share it, it is prefixed with the asset key.
+    """
+    names = {}
+    for key, asset in assets.items():
+        name = _href_filename(asset.href)
+        names[key] = name if name not in ("", ".", "..") else PurePosixPath(key).name
+
+    # Prefix the asset key to the filenames that more than one asset would use
+    counts = Counter(names.values())
+    filenames = {
+        key: f"{PurePosixPath(key).name}_{name}" if counts[name] > 1 else name
+        for key, name in names.items()
+    }
+
+    # A prefixed filename can still match another asset's filename: never overwrite silently
+    if len(set(filenames.values())) < len(filenames):
+        raise AgriAtlasError("Several assets would be downloaded to the same file")
+    return filenames
 
 
 class AgriAtlasSession:
@@ -242,12 +278,17 @@ class AgriAtlasSession:
         # Accept str as well as Path
         target_path = Path(target_path)
 
+        # Keep only the assets with at least one matching role
+        assets = {
+            key: asset
+            for key, asset in item.assets.items()
+            if roles is None or any(role in (asset.roles or []) for role in roles)
+        }
+
         assets_path = {}
-        for key, asset in item.assets.items():
-            if roles is not None and not any(role in (asset.roles or []) for role in roles):
-                # No role matching with asset.roles
-                continue
-            target = target_path / asset.href.rsplit("/", 1)[-1]
-            assets_path[key] = self.download_asset(asset, target, verbose=verbose)
+        for key, filename in _asset_filenames(assets).items():
+            assets_path[key] = self.download_asset(
+                assets[key], target_path / filename, verbose=verbose
+            )
 
         return assets_path
