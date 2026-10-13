@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-13
+
+First release.
+
+### Added
+
 - `agriatlas.login()`: authenticated `pystac_client.Client` with credentials from arguments,
   environment variables or a prompt. A custom `AgriAtlasConfig` can be passed as `client_config`.
 - `agriatlas.logout()`, `agriatlas.get_session()` and `agriatlas.current_session()` to manage the
@@ -30,3 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   request or download to any other host raises `NotTrustedHostError`. The token is only sent over
   `https`, unless `AgriAtlasConfig(allow_http=True)` or `AGRIATLAS_ALLOW_HTTP=true` is set for local
   development.
+
+[Unreleased]: https://github.com/FBK-OpenIoT/agriatlas-python/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/FBK-OpenIoT/agriatlas-python/releases/tag/v0.1.0

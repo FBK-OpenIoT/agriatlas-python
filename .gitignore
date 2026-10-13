@@ -221,3 +221,6 @@ __marimo__/
 
 
 local_tests/
+
+# Files downloaded by agriatlas, at any level (e.g. examples/data/)
+data/

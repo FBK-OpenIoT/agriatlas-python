@@ -122,5 +122,5 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
   and update the README when the public API changes.
 - Tests use `pytest` with `monkeypatch` for env vars. `responses` is available in the dev group for
   mocking HTTP (Keycloak and STAC). Tests must never hit the real AgriAtlas/Keycloak endpoints.
-- `examples/test_example.py` is the maintainer's personal scratch script. Ignore it.
-- `data/` holds downloaded parquet files and must not be committed.
+- `local_tests/` (gitignored) holds the maintainer's personal scratch files. Ignore it.
+- `data/` directories hold downloaded files and are gitignored at any level.

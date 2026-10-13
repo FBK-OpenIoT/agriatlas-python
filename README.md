@@ -79,7 +79,7 @@ config = agriatlas.AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", a
 stac_client = agriatlas.login(client_config=config)
 ```
 
-The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. The full PySTAC Client Documentation can be found [HERE](https://pystac-client.readthedocs.io/).
+The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. See the [pystac-client documentation](https://pystac-client.readthedocs.io/) for what it can do.
 
 ## Getting started notebook
 
