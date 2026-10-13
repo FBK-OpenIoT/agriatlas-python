@@ -17,8 +17,9 @@ class AgriAtlasConfig:
     """AgriAtlas client config for endpoints and options.
 
     `trusted_hosts` accepts a single host name, a comma-separated string of host names, or any
-    collection of host names (list, tuple, set...). The access token is only sent to these hosts:
-    a STAC request or a download to any other host raises `NotTrustedHostError`.
+    collection of host names (list, tuple, set...). The access token is only sent to these hosts
+    and to the host of `stac_api_url`, which is always trusted: a STAC request or a download to any
+    other host raises `NotTrustedHostError`.
     """
 
     stac_api_url: str = "https://www.agriatlas.eu/api/stac/v1/"
@@ -51,17 +52,27 @@ class AgriAtlasConfig:
         base = self.keycloak_url.rstrip("/")
         return f"{base}/realms/{self.keycloak_realm}/protocol/openid-connect/userinfo"
 
+    @property
+    def _effective_trusted_hosts(self) -> frozenset[str]:
+        """The configured trusted hosts plus the host of `stac_api_url`, which is always trusted.
+
+        Otherwise pointing `stac_api_url` to another server would fail every request until
+        `trusted_hosts` was changed too. `urlparse().hostname` is already lowercase.
+        """
+        stac_host = urlparse(self.stac_api_url).hostname
+        return self.trusted_hosts | {stac_host} if stac_host else self.trusted_hosts
+
     def is_trusted(self, url: str) -> bool:
-        """Return True if the host of `url` is one of the trusted hosts."""
+        """Return True if the host of `url` is a trusted host or the host of `stac_api_url`."""
         host = urlparse(url).hostname
-        return host is not None and host.lower() in self.trusted_hosts
+        return host is not None and host.lower() in self._effective_trusted_hosts
 
     def check_trusted_host(self, url: str) -> None:
         """Raise NotTrustedHostError if the host of `url` is not a trusted host."""
         if not self.is_trusted(url):
             raise NotTrustedHostError(
                 f"{urlparse(url).hostname or url!r} is not a trusted AgriAtlas host "
-                f"(trusted: {', '.join(sorted(self.trusted_hosts))})"
+                f"(trusted: {', '.join(sorted(self._effective_trusted_hosts))})"
             )
 
     @classmethod

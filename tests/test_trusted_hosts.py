@@ -111,3 +111,21 @@ def test_download_trusted(session, tmp_path):
     path = session.download_asset(pystac.Asset(TRUSTED_URL), tmp_path / "a.bin")
     assert path.read_bytes() == b"abc"
     assert responses.calls[0].request.headers["Authorization"] == "Bearer T"
+
+
+# Test that the host of stac_api_url is always trusted, without changing trusted_hosts
+def test_stac_host_always_trusted():
+    config = AgriAtlasConfig(
+        stac_api_url="http://LocalHost:8080/stac/", trusted_hosts="data.example.com"
+    )
+    assert config.trusted_hosts == frozenset({"data.example.com"})
+    assert config.is_trusted("http://localhost:8080/stac/collections")
+    assert config.is_trusted("https://data.example.com/a.bin")
+    assert not config.is_trusted("https://www.agriatlas.eu/a.bin")
+
+
+# Test that the error message lists the host of stac_api_url among the trusted hosts
+def test_untrusted_message_lists_stac_host():
+    config = AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", trusted_hosts=())
+    with pytest.raises(NotTrustedHostError, match=r"\(trusted: localhost\)"):
+        config.check_trusted_host(UNTRUSTED_URL)

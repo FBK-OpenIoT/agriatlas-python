@@ -75,6 +75,8 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
 
 - `AgriAtlasConfig.trusted_hosts` takes a host, a comma-separated string or a collection;
   `__post_init__` normalizes it to a lowercase `frozenset`.
+- The host of `stac_api_url` is always trusted too, through `_effective_trusted_hosts`, without being
+  added to `trusted_hosts` itself.
 - `check_trusted_host(url)` matches the exact hostname or raises `NotTrustedHostError`. It runs
   before the token is attached, in `_prepare_authenticated_request` and `download_asset`. Any new
   code path that sends the token must call it too.
