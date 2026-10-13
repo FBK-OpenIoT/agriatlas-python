@@ -7,8 +7,8 @@ from typing import Any
 
 import requests
 
-from .auth_utils import compute_token_expiration_deadline, parse_keycloak_error
-from .config import AgriAtlasConfig
+from ._auth_utils import compute_token_expiration_deadline, parse_keycloak_error
+from ._config import AgriAtlasConfig
 from .exceptions import AuthenticationError
 
 logger = logging.getLogger("agriatlas")

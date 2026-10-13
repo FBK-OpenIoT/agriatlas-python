@@ -2,15 +2,15 @@
 
 from importlib.metadata import version
 
+from ._config import AgriAtlasConfig
 from ._default import current_session, download, download_asset, get_session, login, logout
-from .config import AgriAtlasConfig
+from ._session import AgriAtlasSession
 from .exceptions import (
     AgriAtlasError,
     AuthenticationError,
     NotLoggedInError,
     NotTrustedHostError,
 )
-from .session import AgriAtlasSession
 
 __version__ = version("agriatlas")
 

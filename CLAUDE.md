@@ -26,7 +26,9 @@ uv run ruff check --fix && uv run ruff format              # lint + format (line
 
 ## Architecture
 
-The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are internal modules.
+The public API is whatever `src/agriatlas/__init__.py` re-exports. Every other module is internal and
+named with a leading underscore (`_session.py`, `_auth.py`, ...), except `exceptions.py`, so that
+exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that way.
 
 ### Layers
 
@@ -36,7 +38,7 @@ The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are 
     session's STAC client.
   - `logout()`, `get_session()`, `current_session()`, `download()` and `download_asset()` all
     operate on that global.
-- **`session.py`: `AgriAtlasSession`.**
+- **`_session.py`: `AgriAtlasSession`.**
   - Owns one `requests.Session`, a `TokenManager` and the `pystac_client.Client`.
   - `login()` always calls `close()` first and rebuilds everything.
 
@@ -46,13 +48,13 @@ The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are 
   stac_io=AgriAtlasStacApiIO())`.
 - Every STAC request calls `TokenManager.get_auth_headers()`, which refreshes the access token under
   a lock if it expires within `refresh_margin` seconds. Deadlines use `time.monotonic()`.
-- `auth_stac.AgriAtlasStacApiIO` subclasses pystac-client's `StacApiIO`:
+- `_auth_stac.AgriAtlasStacApiIO` subclasses pystac-client's `StacApiIO`:
   - It turns an `APIError` whose `__context__` is an `AgriAtlasError` back into that error, for
     example when a token refresh fails or the host is not trusted inside the request modifier.
   - It maps HTTP 401/403 to `AuthenticationError`.
   - It depends on pystac-client internals, so re-check it when upgrading pystac-client.
-- The Keycloak token POST is `TokenManager._request_access_token` in `auth.py`.
-- `auth_utils.py` holds the helpers: `parse_keycloak_error`, `compute_token_expiration_deadline` and
+- The Keycloak token POST is `TokenManager._request_access_token` in `_auth.py`.
+- `_auth_utils.py` holds the helpers: `parse_keycloak_error`, `compute_token_expiration_deadline` and
   `resolve_credentials`.
 - Credential lookup order: arguments, then `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an
   interactive prompt (disabled by `interactive=False`).

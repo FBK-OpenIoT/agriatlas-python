@@ -5,7 +5,7 @@ import pytest
 import responses
 
 from agriatlas import AgriAtlasConfig, AgriAtlasSession, NotTrustedHostError
-from agriatlas.auth_stac import AgriAtlasStacApiIO
+from agriatlas._auth_stac import AgriAtlasStacApiIO
 
 TRUSTED_URL = "https://www.agriatlas.eu/files/a.bin"
 UNTRUSTED_URL = "https://evil.example.com/files/a.bin"

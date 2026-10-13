@@ -1,9 +1,8 @@
 import pytest
 import requests
 
-from agriatlas import AuthenticationError
-from agriatlas.auth import TokenManager
-from agriatlas.config import AgriAtlasConfig
+from agriatlas import AgriAtlasConfig, AuthenticationError
+from agriatlas._auth import TokenManager
 
 
 # Test that a token request after close() raises AuthenticationError

@@ -11,9 +11,9 @@ import pystac
 import requests
 from pystac_client import Client
 
-from .auth import TokenManager
-from .auth_stac import AgriAtlasStacApiIO
-from .config import AgriAtlasConfig
+from ._auth import TokenManager
+from ._auth_stac import AgriAtlasStacApiIO
+from ._config import AgriAtlasConfig
 from .exceptions import AgriAtlasError, AuthenticationError, NotLoggedInError
 
 logger = logging.getLogger("agriatlas")

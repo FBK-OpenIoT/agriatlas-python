@@ -4,10 +4,10 @@ from pathlib import Path
 import pystac
 from pystac_client import Client
 
-from .auth_utils import resolve_credentials
-from .config import AgriAtlasConfig
+from ._auth_utils import resolve_credentials
+from ._config import AgriAtlasConfig
+from ._session import AgriAtlasSession
 from .exceptions import NotLoggedInError
-from .session import AgriAtlasSession
 
 _default_logged_session: AgriAtlasSession | None = None
 
