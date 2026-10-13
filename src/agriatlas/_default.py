@@ -1,13 +1,14 @@
+import getpass
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
 import pystac
 from pystac_client import Client
 
-from ._auth_utils import resolve_credentials
 from ._config import AgriAtlasConfig
 from ._session import AgriAtlasSession
-from .exceptions import NotLoggedInError
+from .exceptions import AuthenticationError, NotLoggedInError
 
 _default_logged_session: AgriAtlasSession | None = None
 
@@ -103,3 +104,45 @@ def download(
         )
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
+
+
+def resolve_credentials(
+    username: str | None, password: str | None, *, interactive: bool
+) -> tuple[str, str]:
+    """Utility to resolve and return (username, password) from the arguments, the environment, or
+    a prompt.
+    """
+
+    # Get username and password from arguments or environment variables
+    username = username or os.environ.get("AGRIATLAS_USERNAME") or None
+    password = password or os.environ.get("AGRIATLAS_PASSWORD") or None
+
+    # If both username and password are resolved, return them directly
+    if username and password:
+        return username, password
+
+    if not interactive:
+        # Raise an exception if no credentials are provided and interactive mode is disabled
+        raise AuthenticationError(
+            "No AgriAtlas credentials: pass username and password, "
+            "or set AGRIATLAS_USERNAME and AGRIATLAS_PASSWORD"
+        )
+
+    # Prompt the user for username and password if not provided
+    try:
+        if not username:
+            username = input("AgriAtlas username: ").strip()
+        if not password:
+            password = getpass.getpass("AgriAtlas password: ")
+    except EOFError as err:
+        raise AuthenticationError(
+            "No AgriAtlas credentials and no terminal to ask for them: pass username and "
+            "password, or set AGRIATLAS_USERNAME and AGRIATLAS_PASSWORD"
+        ) from err
+
+    # If either username or password is still missing, raise an exception
+    if not username or not password:
+        raise AuthenticationError("AgriAtlas username and password are required")
+
+    # Now, username and password are resolved
+    return username, password

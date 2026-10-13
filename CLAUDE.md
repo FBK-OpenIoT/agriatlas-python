@@ -54,10 +54,10 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
   - It maps HTTP 401/403 to `AuthenticationError`.
   - It depends on pystac-client internals, so re-check it when upgrading pystac-client.
 - The Keycloak token POST is `TokenManager._request_access_token` in `_auth.py`.
-- `_auth_utils.py` holds the helpers: `parse_keycloak_error`, `compute_token_expiration_deadline` and
-  `resolve_credentials`.
-- Credential lookup order: arguments, then `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an
-  interactive prompt (disabled by `interactive=False`).
+- `_auth_utils.py` holds the helpers `parse_keycloak_error` and `compute_token_expiration_deadline`.
+- `resolve_credentials` in `_default.py` looks up credentials in this order: arguments, then
+  `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an interactive prompt (disabled by
+  `interactive=False`).
 
 ### Config
 
