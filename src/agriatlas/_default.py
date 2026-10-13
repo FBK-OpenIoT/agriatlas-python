@@ -77,7 +77,7 @@ def download_asset(asset: pystac.Asset, target: str | Path, *, verbose: bool = T
     Returns the target path. With `verbose=False`, the progress bar and pooch's log messages are
     hidden. Raises NotLoggedInError if `login()` has not been called.
     """
-    if _default_logged_session:
+    if _default_logged_session is not None:
         return _default_logged_session.download_asset(asset=asset, target=target, verbose=verbose)
     else:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
@@ -97,7 +97,7 @@ def download(
     progress bars and pooch's log messages are hidden. Raises NotLoggedInError if `login()` has
     not been called.
     """
-    if _default_logged_session:
+    if _default_logged_session is not None:
         return _default_logged_session.download(
             item=item, target_path=target_path, roles=roles, verbose=verbose
         )
