@@ -51,8 +51,9 @@ The public API is whatever `src/agriatlas/__init__.py` re-exports. The rest are 
     example when a token refresh fails or the host is not trusted inside the request modifier.
   - It maps HTTP 401/403 to `AuthenticationError`.
   - It depends on pystac-client internals, so re-check it when upgrading pystac-client.
-- `auth_utils.py` holds the Keycloak token POST (`request_access_token`), error parsing, expiry
-  computation, and `resolve_credentials`.
+- The Keycloak token POST is `TokenManager._request_access_token` in `auth.py`.
+- `auth_utils.py` holds the helpers: `parse_keycloak_error`, `compute_token_expiration_deadline` and
+  `resolve_credentials`.
 - Credential lookup order: arguments, then `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an
   interactive prompt (disabled by `interactive=False`).
 

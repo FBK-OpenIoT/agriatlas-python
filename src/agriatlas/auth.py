@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from .auth_utils import compute_token_expiration_deadline, request_access_token
+from .auth_utils import compute_token_expiration_deadline, parse_keycloak_error
 from .config import AgriAtlasConfig
 from .exceptions import AuthenticationError
 
@@ -53,17 +53,17 @@ class TokenManager:
     ) -> TokenManager:
         """Log in to Keycloak with a username and password. Requires the password grant."""
 
+        # Create a TokenManager instance
+        manager = cls("", config=config, http_session=http_session)
+
         # Request an access token and refresh token from Keycloak using the password grant type
-        data = request_access_token(
-            config,
-            http_session,
+        data = manager._request_access_token(
             {"grant_type": "password", "username": username, "password": password},
             failure="AgriAtlas login failed",
         )
         logger.info("Logged in to AgriAtlas as %s", username)
 
-        # Create a TokenManager instance with the received tokens and return it
-        manager = cls("", config=config, http_session=http_session)
+        # Store the tokens and return it
         manager._store_tokens(data)
 
         return manager
@@ -125,12 +125,41 @@ class TokenManager:
 
         # Refresh the access token using the refresh token
         logger.debug("Refreshing the AgriAtlas access token")
-        data = request_access_token(
-            self._config,
-            self._http_session,
+        data = self._request_access_token(
             {"grant_type": "refresh_token", "refresh_token": self._refresh_token},
             failure="Could not refresh the AgriAtlas session; call agriatlas.login() again",
         )
 
         # Update tokens and expiration times
         self._store_tokens(data)
+
+    def _request_access_token(
+        self,
+        credential_form: dict[str, Any],
+        *,
+        failure: str,
+    ) -> dict[str, Any]:
+        """Request an access token from Keycloak using the given form data."""
+
+        credential_form = {
+            "client_id": self._config.keycloak_client_id,
+            **credential_form,
+        }
+
+        try:
+            # Send a POST request to the Keycloak token endpoint with the form data
+            response = self._http_session.post(
+                self._config.token_url, data=credential_form, timeout=self._config.timeout
+            )
+        except requests.RequestException as err:
+            raise AuthenticationError(
+                f"{failure}: could not reach {self._config.token_url} ({type(err).__name__})"
+            ) from err
+
+        # Handle keycloak error responses
+        if not response.ok:
+            raise AuthenticationError(f"{failure}: {parse_keycloak_error(response)}")
+        try:
+            return response.json()
+        except ValueError as err:
+            raise AuthenticationError(f"{failure}: Keycloak returned an invalid response") from err

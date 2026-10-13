@@ -4,7 +4,6 @@ from typing import Any
 
 import requests
 
-from .config import AgriAtlasConfig
 from .exceptions import AuthenticationError
 
 
@@ -48,37 +47,6 @@ def resolve_credentials(
 
     # Now, username and password are resolved
     return username, password
-
-
-def request_access_token(
-    config: AgriAtlasConfig,
-    http_session: requests.Session,
-    credential_form: dict[str, Any],
-    *,
-    failure: str,
-) -> dict[str, Any]:
-    """Request an access token from Keycloak using the given form data."""
-
-    credential_form = {
-        "client_id": config.keycloak_client_id,
-        **credential_form,
-    }
-
-    try:
-        # Send a POST request to the Keycloak token endpoint with the form data
-        response = http_session.post(config.token_url, data=credential_form, timeout=config.timeout)
-    except requests.RequestException as err:
-        raise AuthenticationError(
-            f"{failure}: could not reach {config.token_url} ({type(err).__name__})"
-        ) from err
-
-    # Handle keycloak error responses
-    if not response.ok:
-        raise AuthenticationError(f"{failure}: {parse_keycloak_error(response)}")
-    try:
-        return response.json()
-    except ValueError as err:
-        raise AuthenticationError(f"{failure}: Keycloak returned an invalid response") from err
 
 
 def parse_keycloak_error(response: requests.Response) -> str:
