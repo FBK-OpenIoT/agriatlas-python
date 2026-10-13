@@ -41,11 +41,21 @@ For security, the access token is only sent to trusted hosts (by default `www.ag
 `minio.services.irritre.openiotlab.eu`). A STAC request or a download to any other host raises
 `agriatlas.NotTrustedHostError`. The host of the STAC API URL is always trusted, so pointing
 `AGRIATLAS_STAC_API_URL` to another server works without changing the trusted hosts. To change the
-trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a comma-separated list, or pass a custom config (it
-replaces the defaults):
+trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a comma-separated list, or pass a custom config. A
+custom list replaces the defaults, so include every host the files are stored on:
 
 ```python
-config = agriatlas.AgriAtlasConfig(trusted_hosts={"www.agriatlas.eu", "data.agriatlas.eu"})
+config = agriatlas.AgriAtlasConfig(
+    trusted_hosts={"minio.services.irritre.openiotlab.eu", "www.agriatlas.eu"}
+)
+stac_client = agriatlas.login(client_config=config)
+```
+
+The token is only sent over `https`. For a local development server on plain `http`, allow it
+explicitly, knowing the token then travels unencrypted (or set `AGRIATLAS_ALLOW_HTTP=true`):
+
+```python
+config = agriatlas.AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", allow_http=True)
 stac_client = agriatlas.login(client_config=config)
 ```
 

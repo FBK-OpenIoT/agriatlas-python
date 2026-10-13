@@ -2,7 +2,7 @@ import pystac
 import pytest
 import responses
 
-from agriatlas import AgriAtlasConfig, NotTrustedHostError
+from agriatlas import AgriAtlasConfig, AgriAtlasError, NotTrustedHostError
 from agriatlas._auth_stac import AgriAtlasStacApiIO
 
 TRUSTED_URL = "https://www.agriatlas.eu/files/a.bin"
@@ -116,7 +116,9 @@ def test_download_trusted(session, tmp_path):
 # Test that the host of stac_api_url is always trusted, without changing trusted_hosts
 def test_stac_host_always_trusted():
     config = AgriAtlasConfig(
-        stac_api_url="http://LocalHost:8080/stac/", trusted_hosts="data.example.com"
+        stac_api_url="http://LocalHost:8080/stac/",
+        trusted_hosts="data.example.com",
+        allow_http=True,
     )
     assert config.trusted_hosts == frozenset({"data.example.com"})
     assert config.is_trusted("http://localhost:8080/stac/collections")
@@ -126,6 +128,50 @@ def test_stac_host_always_trusted():
 
 # Test that the error message lists the host of stac_api_url among the trusted hosts
 def test_untrusted_message_lists_stac_host():
-    config = AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", trusted_hosts=())
+    config = AgriAtlasConfig(
+        stac_api_url="http://localhost:8080/stac/", trusted_hosts=(), allow_http=True
+    )
     with pytest.raises(NotTrustedHostError, match=r"\(trusted: localhost\)"):
         config.check_trusted_host(UNTRUSTED_URL)
+
+
+# Test that the token is never sent over plain http to a trusted host, unless allow_http is set
+def test_http_rejected_by_default():
+    config = AgriAtlasConfig()
+    url = "http://www.agriatlas.eu/files/a.bin"
+    assert not config.is_trusted(url)
+    with pytest.raises(NotTrustedHostError, match="only https"):
+        config.check_trusted_host(url)
+
+    assert AgriAtlasConfig(allow_http=True).is_trusted(url)
+
+
+# Test that allow_http allows only http, not other schemes, and still checks the host
+@pytest.mark.parametrize(
+    "url",
+    ["ftp://www.agriatlas.eu/a.bin", "file://www.agriatlas.eu/a.bin", "http://evil.example.com/x"],
+)
+def test_allow_http_other_schemes(url):
+    assert not AgriAtlasConfig(allow_http=True).is_trusted(url)
+
+
+# Test that a plain http download sends nothing
+@responses.activate
+def test_download_over_http_rejected(session, tmp_path):
+    with pytest.raises(NotTrustedHostError, match="only https"):
+        session.download_asset(pystac.Asset("http://www.agriatlas.eu/a.bin"), tmp_path / "a.bin")
+    assert len(responses.calls) == 0
+
+
+# Test the AGRIATLAS_ALLOW_HTTP env variable
+@pytest.mark.parametrize(("value", "expected"), [("true", True), ("Yes", True), ("0", False)])
+def test_allow_http_env(monkeypatch, value, expected):
+    monkeypatch.setenv("AGRIATLAS_ALLOW_HTTP", value)
+    assert AgriAtlasConfig.from_env().allow_http is expected
+
+
+# Test that an invalid AGRIATLAS_ALLOW_HTTP raises AgriAtlasError
+def test_allow_http_env_invalid(monkeypatch):
+    monkeypatch.setenv("AGRIATLAS_ALLOW_HTTP", "maybe")
+    with pytest.raises(AgriAtlasError, match="AGRIATLAS_ALLOW_HTTP"):
+        AgriAtlasConfig.from_env()

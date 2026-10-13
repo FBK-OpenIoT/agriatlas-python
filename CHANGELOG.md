@@ -27,4 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Trusted hosts: the access token is only sent to the hosts in `AgriAtlasConfig.trusted_hosts`
   (default `www.agriatlas.eu` and `minio.services.irritre.openiotlab.eu`, overridable with the
   comma-separated `AGRIATLAS_TRUSTED_HOSTS`). The host of `stac_api_url` is always trusted. A STAC
-  request or download to any other host raises `NotTrustedHostError`.
+  request or download to any other host raises `NotTrustedHostError`. The token is only sent over
+  `https`, unless `AgriAtlasConfig(allow_http=True)` or `AGRIATLAS_ALLOW_HTTP=true` is set for local
+  development.

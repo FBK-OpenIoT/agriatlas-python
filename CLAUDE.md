@@ -66,10 +66,11 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
 
 - `AgriAtlasConfig` is a frozen dataclass.
 - `from_env()` maps each field to the environment variable `AGRIATLAS_<FIELD_NAME_UPPER>`:
-  `STAC_API_URL`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `TIMEOUT` and
-  `TRUSTED_HOSTS` (comma-separated). Empty values are ignored.
+  `STAC_API_URL`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `TIMEOUT`,
+  `TRUSTED_HOSTS` (comma-separated) and `ALLOW_HTTP` (true/false, 1/0, yes/no, on/off). Empty values
+  are ignored.
 - A new field gets an env override automatically, but non-string fields need explicit parsing in
-  `from_env()`, as `timeout` has.
+  `from_env()`, as `timeout` and `allow_http` have.
 
 ### Trusted hosts
 
@@ -77,9 +78,10 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
   `__post_init__` normalizes it to a lowercase `frozenset`.
 - The host of `stac_api_url` is always trusted too, through `_effective_trusted_hosts`, without being
   added to `trusted_hosts` itself.
-- `check_trusted_host(url)` matches the exact hostname or raises `NotTrustedHostError`. It runs
-  before the token is attached, in `_prepare_authenticated_request` and `download_asset`. Any new
-  code path that sends the token must call it too.
+- `check_trusted_host(url)` requires the exact hostname and the `https` scheme (or `http` with
+  `allow_http`), or raises `NotTrustedHostError`. It runs before the token is attached, in
+  `_prepare_authenticated_request` and `download_asset`. Any new code path that sends the token must
+  call it too.
 - The Keycloak token and userinfo URLs are not checked (they come from config, not catalog data).
 
 ### Exceptions
