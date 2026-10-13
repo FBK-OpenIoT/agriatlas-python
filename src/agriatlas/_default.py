@@ -73,8 +73,14 @@ def login(
     return session.get_client()
 
 
-def logout():
-    """Log out by closing session"""
+def logout() -> None:
+    """Log out of AgriAtlas by closing the default session created by `login()`.
+
+    The tokens and the HTTP session are discarded. Afterwards, the STAC client returned by
+    `login()`, `download()` and `download_asset()` raise `NotLoggedInError` until `login()` is
+    called again. Sessions created directly with `AgriAtlasSession` are not affected. Calling it
+    when not logged in does nothing.
+    """
     global _default_logged_session
 
     if _default_logged_session is not None:
@@ -85,8 +91,15 @@ def logout():
 def get_session() -> AgriAtlasSession:
     """Return the default AgriAtlasSession created by `login()`.
 
+    Use it to reach what the STAC client does not expose, e.g. `get_auth_headers()` to pass the
+    token to GDAL or rasterio, or `get_user_info()`. To check whether a login happened without
+    raising, use `current_session()`.
+
+    Returns:
+        The logged-in default session.
+
     Raises:
-        NotLoggedInError: If `login()` has not been called successfully.
+        NotLoggedInError: If `login()` has not been called successfully, or after `logout()`.
     """
     if _default_logged_session is None:
         raise NotLoggedInError("Not logged in to AgriAtlas: call agriatlas.login() first")
