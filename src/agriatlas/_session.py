@@ -130,7 +130,7 @@ class AgriAtlasSession:
         self._token_manager = None
 
     def __repr__(self) -> str:
-        return f"<agriatlas.Session stac_url={self._client_config.stac_api_url!r}, username=TBD>"
+        return f"<AgriAtlasSession stac_url={self._client_config.stac_api_url!r}, username=TBD>"
 
     def login(self, username: str | None = None, password: str | None = None) -> Client:
         # before login, clear the clients and recreate them
