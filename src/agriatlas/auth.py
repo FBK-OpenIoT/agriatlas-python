@@ -20,6 +20,8 @@ class TokenManager:
     The password is used once, for the password grant in `password_grant()`, and is not kept.
     """
 
+    _http_session: requests.Session | None
+
     def __init__(
         self,
         access_token: str,
@@ -29,7 +31,7 @@ class TokenManager:
         refresh_expires_at: float | None = None,
         refresh_margin: int = 30,
         config: AgriAtlasConfig,
-        http_session: requests.Session | None = None,
+        http_session: requests.Session,
     ) -> None:
         self._access_token = access_token
         self._expires_at = expires_at
@@ -115,7 +117,6 @@ class TokenManager:
 
     def _refresh_access_token(self) -> None:
         """Refresh the access token using the refresh token."""
-        assert self._config is not None and self._http_session is not None
 
         # Check if the refresh token has expired. Raise an exception if true.
         if self._refresh_expires_at is not None and time.monotonic() >= self._refresh_expires_at:
@@ -140,6 +141,10 @@ class TokenManager:
         failure: str,
     ) -> dict[str, Any]:
         """Request an access token from Keycloak using the given form data."""
+
+        # The HTTP session is gone once the manager is closed
+        if self._http_session is None:
+            raise AuthenticationError(f"{failure}: no HTTP session; call agriatlas.login() again")
 
         credential_form = {
             "client_id": self._config.keycloak_client_id,
