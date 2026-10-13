@@ -60,7 +60,13 @@ class TokenManager:
         data = cls._request_access_token(
             config,
             http_session,
-            {"grant_type": "password", "username": username, "password": password},
+            # The openid scope is required by Keycloak's userinfo endpoint (get_user_info)
+            {
+                "grant_type": "password",
+                "username": username,
+                "password": password,
+                "scope": "openid email profile",
+            },
             failure="AgriAtlas login failed",
         )
 

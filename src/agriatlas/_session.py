@@ -212,7 +212,8 @@ class AgriAtlasSession:
         try:
             username = self.get_user_info().get("preferred_username")
         except AuthenticationError as err:
-            logger.warning("Could not retrieve the AgriAtlas user info: %s", err)
+            # The error message already says what failed
+            logger.warning("%s", err)
             return default
         return username if isinstance(username, str) and username else default
 

@@ -57,6 +57,9 @@ exceptions show as `agriatlas.exceptions.X` in tracebacks; keep new modules that
   - It maps HTTP 401/403 to `AuthenticationError`.
   - It depends on pystac-client internals, so re-check it when upgrading pystac-client.
 - The Keycloak token POST is `TokenManager._request_access_token` in `_auth.py`.
+- The password grant asks for `scope=openid`: without it, Keycloak's userinfo endpoint answers 403
+  (`insufficient_scope`). Bearer endpoints report errors in the `WWW-Authenticate` header, not in
+  the body, so `parse_keycloak_error` reads both.
 - `_auth_utils.py` holds the helpers `parse_keycloak_error` and `compute_token_expiration_deadline`.
 - `resolve_credentials` in `_default.py` looks up credentials in this order: arguments, then
   `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD`, then an interactive prompt (disabled by

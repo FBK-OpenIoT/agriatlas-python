@@ -52,6 +52,9 @@ def test_password_grant():
     assert manager.get_auth_headers() == {"Authorization": "Bearer A"}
     assert manager.is_refreshable
 
+    # The userinfo endpoint needs the openid scope
+    assert "scope=openid" in responses.calls[0].request.body
+
 
 # Test that a token response without an access token raises AuthenticationError
 @responses.activate
@@ -86,4 +89,22 @@ def test_get_user_info_error():
     manager = TokenManager("T", config=config, http_session=requests.Session())
 
     with pytest.raises(AuthenticationError, match="Token verification failed"):
+        manager.get_user_info()
+
+
+# Test that the error of a Bearer-protected endpoint is read from the WWW-Authenticate header
+@responses.activate
+def test_get_user_info_error_in_header():
+    config = AgriAtlasConfig()
+    responses.get(
+        config.userinfo_url,
+        status=403,
+        headers={
+            "WWW-Authenticate": 'Bearer realm="agriatlas", error="insufficient_scope", '
+            'error_description="Missing openid scope"'
+        },
+    )
+    manager = TokenManager("T", config=config, http_session=requests.Session())
+
+    with pytest.raises(AuthenticationError, match=r"HTTP 403 \(Missing openid scope\)"):
         manager.get_user_info()

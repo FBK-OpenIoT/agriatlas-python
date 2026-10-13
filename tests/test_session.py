@@ -1,3 +1,5 @@
+import logging
+
 import pystac
 import pytest
 import requests
@@ -116,11 +118,12 @@ def test_repr_username_from_user_info(no_stac):
 
 # Test that a user info failure doesn't fail the login, and the login username is shown instead
 @responses.activate
-def test_repr_username_without_user_info(no_stac):
+def test_repr_username_without_user_info(no_stac, caplog):
     config = AgriAtlasConfig()
     responses.post(config.token_url, json=TOKENS)
     responses.get(config.userinfo_url, status=500)
     session = AgriAtlasSession(config)
 
-    session.login("user", "secret")
+    with caplog.at_level(logging.WARNING, logger="agriatlas"):
+        session.login("user", "secret")
     assert "username='user'" in repr(session)
