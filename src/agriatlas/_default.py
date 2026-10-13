@@ -20,6 +20,33 @@ def login(
     client_config: AgriAtlasConfig | None = None,
     interactive: bool = True,
 ) -> Client:
+    """Log in to AgriAtlas and return an authenticated STAC client.
+
+    The new session becomes the default one used by `download()`, `download_asset()` and
+    `get_session()`. The previous default session, if any, is closed, but only once the new login
+    succeeds: if it fails, the previous session is kept.
+
+    The username and the password are each looked up in this order: the argument, then the
+    `AGRIATLAS_USERNAME`/`AGRIATLAS_PASSWORD` environment variables, then an interactive prompt.
+    The access token is refreshed automatically before it expires.
+
+    Args:
+        username: The AgriAtlas username.
+        password: The AgriAtlas password. It is only used for the login and is not kept.
+        client_config: The endpoints and options to use. Defaults to `AgriAtlasConfig.from_env()`,
+            which reads the `AGRIATLAS_*` environment variables.
+        interactive: Whether to prompt for missing credentials. Pass `False` in scripts and
+            notebooks that must not block on a prompt.
+
+    Returns:
+        A `pystac_client.Client` whose requests carry the access token.
+
+    Raises:
+        AuthenticationError: If the credentials are missing (with `interactive=False` or without
+            a terminal), or if Keycloak rejects them or cannot be reached.
+        AgriAtlasError: If an `AGRIATLAS_*` environment variable is invalid, e.g. a non-numeric
+            `AGRIATLAS_TIMEOUT`.
+    """
     global _default_logged_session
 
     # Get the config from env vars (if any is set)
