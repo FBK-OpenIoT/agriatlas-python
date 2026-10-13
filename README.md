@@ -1,6 +1,7 @@
 # agriatlas-python
-Python client for [AgriAtlas](https://www.agriatlas.eu) catalog.
-This library provides a simple authenticated STAC client and a download helper in only one import.
+
+Python client for the [AgriAtlas](https://www.agriatlas.eu) catalog. With a single import, it gives
+you an authenticated STAC client and helpers to download the data files.
 
 ## Installation
 
@@ -22,7 +23,7 @@ In a Jupyter notebook:
 %pip install "agriatlas @ git+https://github.com/FBK-OpenIoT/agriatlas-python@v0.1.0"
 ```
 
-## Quick Usage
+## Quick start
 
 ```python
 import agriatlas
@@ -33,53 +34,9 @@ item = stac_client.get_collection("<collection-id>").get_item("<item-id>")
 files = agriatlas.download(item, "./data")  # {asset_key: Path} for the "data" assets
 ```
 
-In addition, it is possible to download a single asset
-```python
-path = agriatlas.download_asset(item.assets["<asset-key>"], "./data/file.parquet")
-```
-
-or all the assets regardless of their role
-```python
-all_files = agriatlas.download(item, "./data", roles=None)
-```
-
-Downloads are verified against the asset's `file:checksum` when the catalog provides it. Files
-already present with the expected checksum (or size, if there is no checksum) are not downloaded
-again.
-
-To check which account you are logged in with, ask Keycloak for the user information:
-```python
-info = agriatlas.get_session().get_user_info()  # e.g. {"preferred_username": ..., "email": ...}
-```
-
-Downloads show a progress bar and log messages. Pass `verbose=False` to hide them, e.g. in scripts:
-```python
-files = agriatlas.download(item, "./data", verbose=False)
-```
-
-For security, the access token is only sent to trusted hosts (by default `www.agriatlas.eu` and
-`minio.services.irritre.openiotlab.eu`). A STAC request or a download to any other host raises
-`agriatlas.NotTrustedHostError`. The host of the STAC API URL is always trusted, so pointing
-`AGRIATLAS_STAC_API_URL` to another server works without changing the trusted hosts. To change the
-trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a comma-separated list, or pass a custom config. A
-custom list replaces the defaults, so include every host the files are stored on:
-
-```python
-config = agriatlas.AgriAtlasConfig(
-    trusted_hosts={"minio.services.irritre.openiotlab.eu", "www.agriatlas.eu"}
-)
-stac_client = agriatlas.login(client_config=config)
-```
-
-The token is only sent over `https`. For a local development server on plain `http`, allow it
-explicitly, knowing the token then travels unencrypted (or set `AGRIATLAS_ALLOW_HTTP=true`):
-
-```python
-config = agriatlas.AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", allow_http=True)
-stac_client = agriatlas.login(client_config=config)
-```
-
-The `login()` function returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already authenticated: search, browse collections and items as usual. The access token is refreshed automatically before it expires. See the [pystac-client documentation](https://pystac-client.readthedocs.io/) for what it can do.
+`login()` returns a [`pystac_client.Client`](https://pystac-client.readthedocs.io/) that is already
+authenticated: search and browse collections and items as usual. The access token is refreshed
+automatically before it expires.
 
 ## Getting started notebook
 
@@ -94,10 +51,91 @@ data files. To use it:
 
 The files are saved in `./data`, next to the notebook.
 
-## Python API
+## Usage
+
+### Logging in
+
+`login()` looks up the username and the password separately, in this order:
+
+1. the `username` and `password` arguments;
+2. the `AGRIATLAS_USERNAME` and `AGRIATLAS_PASSWORD` environment variables;
+3. an interactive prompt. Pass `interactive=False` to raise `AuthenticationError` instead, e.g. in
+   scripts that must not block.
+
+To check which account you are logged in with, ask Keycloak for the user information:
+
+```python
+info = agriatlas.get_session().get_user_info()  # e.g. {"preferred_username": ..., "email": ...}
+```
+
+### Downloading files
+
+By default, `download()` saves the assets with the `data` role into a directory. To download all
+the assets regardless of their role:
+
+```python
+all_files = agriatlas.download(item, "./data", roles=None)
+```
+
+To download a single asset to a given file:
+
+```python
+path = agriatlas.download_asset(item.assets["<asset-key>"], "./data/file.parquet")
+```
+
+- Downloads are verified against the asset's `file:checksum` when the catalog provides it.
+- Files already present with the expected checksum (or size, if there is no checksum) are not
+  downloaded again.
+- Downloads show a progress bar and log messages. Pass `verbose=False` to hide them, e.g. in
+  scripts:
+
+  ```python
+  files = agriatlas.download(item, "./data", verbose=False)
+  ```
+
+### Using the token with other tools
+
+`get_auth_headers()` returns `{"Authorization": "Bearer <token>"}` with a valid token, so other
+HTTP clients can read AgriAtlas data:
+
+```python
+headers = agriatlas.get_session().get_auth_headers()
+```
+
+The token expires, so call `get_auth_headers()` again before long jobs. These headers skip the
+trusted-host check (see below): only use them with AgriAtlas URLs.
+
+### Trusted hosts and https
+
+For security, the access token is only sent to trusted hosts, by default `www.agriatlas.eu` and
+`minio.services.irritre.openiotlab.eu`. A STAC request or a download to any other host raises
+`agriatlas.NotTrustedHostError`.
+
+- The host of the STAC API URL is always trusted, so pointing `AGRIATLAS_STAC_API_URL` to another
+  server works without changing the trusted hosts.
+- To change the trusted hosts, set `AGRIATLAS_TRUSTED_HOSTS` to a comma-separated list, or pass a
+  custom config. A custom list **replaces** the defaults, so include every host the files are
+  stored on:
+
+  ```python
+  config = agriatlas.AgriAtlasConfig(
+      trusted_hosts={"minio.services.irritre.openiotlab.eu", "www.agriatlas.eu"}
+  )
+  stac_client = agriatlas.login(client_config=config)
+  ```
+
+The token is only sent over `https`. For a local development server on plain `http`, allow it
+explicitly (or set `AGRIATLAS_ALLOW_HTTP=true`), knowing that the token then travels unencrypted:
+
+```python
+config = agriatlas.AgriAtlasConfig(stac_api_url="http://localhost:8080/stac/", allow_http=True)
+stac_client = agriatlas.login(client_config=config)
+```
+
+## API reference
 
 Everything below is importable from `agriatlas`. Each function and method has a docstring with the
-details, e.g. `help(agriatlas.login)`.
+details, e.g. `help(agriatlas.login)`. `__version__` holds the installed version.
 
 ### Functions
 
@@ -111,17 +149,6 @@ These work on a default session, created by `login()` and shared by the other fu
 | `current_session()` | Return the default `AgriAtlasSession`, or `None` if not logged in. |
 | `download(item, target_path, *, roles=("data",), verbose=True)` | Download the assets of an Item into a directory. Returns `{asset_key: Path}`. |
 | `download_asset(asset, target, *, verbose=True)` | Download one asset to a file. Returns its `Path`. |
-
-`__version__` holds the installed version.
-
-### Credentials
-
-`login()` looks up the username and the password separately, in this order:
-
-1. the `username` and `password` arguments;
-2. the `AGRIATLAS_USERNAME` and `AGRIATLAS_PASSWORD` environment variables;
-3. an interactive prompt. Pass `interactive=False` to raise `AuthenticationError` instead, e.g. in
-   scripts that must not block.
 
 ### Configuration
 
@@ -164,18 +191,6 @@ session.close()
 
 The methods raise `NotLoggedInError` before `login()` or after `close()`.
 
-`get_auth_headers()` lets other HTTP clients, such as GDAL or rasterio, read AgriAtlas data:
-
-```python
-import os
-
-headers = agriatlas.get_session().get_auth_headers()
-os.environ["GDAL_HTTP_HEADERS"] = f"Authorization: {headers['Authorization']}"
-```
-
-The token expires, so call `get_auth_headers()` again before long jobs. These headers skip the
-trusted-host check: only use them with AgriAtlas URLs.
-
 ### Exceptions
 
 All the errors raised by the library derive from `AgriAtlasError`:
@@ -191,7 +206,9 @@ A download also raises `AgriAtlasError` when the asset is not found (HTTP 404) o
 not match.
 
 ## Development
-To use the lib as developer, clone the repository then follow these steps
+
+To work on the library, clone the repository, then:
+
 ```bash
 uv sync                                                            # create .venv with dev tools
 uv run pre-commit install --hook-type pre-commit --hook-type pre-push
@@ -199,11 +216,12 @@ uv run pytest                                                      # run the tes
 uv run ruff check && uv run ruff format
 ```
 
-Currently only a few tests are in place; more are planned. The `uv` definition already installs `pytest` and the other dev tools.
+Only a few tests are in place for now; more are planned.
 
 ## License
 
 [MIT](LICENSE), (C) 2026 OpenIoT Research Unit (Fondazione Bruno Kessler).
 
 ## Acknowledgement
+
 TBD
