@@ -64,31 +64,26 @@ class AgriAtlasConfig:
         """Create a config from environment variables."""
         values: dict[str, Any] = {}
 
-        try:
-            # Override the default values with environment variables if they exist
-            for field in fields(cls):
-                env_var = f"AGRIATLAS_{field.name.upper()}"
-                value = os.getenv(env_var)
+        # Override the default values with environment variables if they exist
+        for field in fields(cls):
+            env_var = f"AGRIATLAS_{field.name.upper()}"
+            value = os.getenv(env_var)
 
-                # skip empty
-                if value is None or not value.strip():
-                    continue
+            # skip empty
+            if value is None or not value.strip():
+                continue
 
-                value = value.strip()
+            value = value.strip()
 
-                if field.name == "timeout":
-                    # Handle the timeout env variable
-                    try:
-                        values[field.name] = float(value)
-                    except ValueError as err:
-                        raise AgriAtlasError(f"Invalid value for {env_var}: {value!r}") from err
+            if field.name == "timeout":
+                # Handle the timeout env variable
+                try:
+                    values[field.name] = float(value)
+                except ValueError as err:
+                    raise AgriAtlasError(f"Invalid value for {env_var}: {value!r}") from err
 
-                else:
-                    # Handle all other env variables (trusted_hosts is split by __post_init__)
-                    values[field.name] = value
-
-        except Exception as e:
-            # If any error occures while reading environment variables
-            raise AgriAtlasError(f"Error reading environment variables: {e}") from e
+            else:
+                # Handle all other env variables (trusted_hosts is split by __post_init__)
+                values[field.name] = value
 
         return cls(**values)

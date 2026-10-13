@@ -46,5 +46,5 @@ def test_env_overrides(monkeypatch):
 def test_invalid_timeout(monkeypatch):
     monkeypatch.setenv("AGRIATLAS_TIMEOUT", "soon")
 
-    with pytest.raises(AgriAtlasError, match="AGRIATLAS_TIMEOUT"):
+    with pytest.raises(AgriAtlasError, match=r"^Invalid value for AGRIATLAS_TIMEOUT"):
         AgriAtlasConfig.from_env()
