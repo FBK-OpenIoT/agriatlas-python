@@ -56,18 +56,17 @@ class TokenManager:
     ) -> TokenManager:
         """Log in to Keycloak with a username and password. Requires the password grant."""
 
-        # Create a TokenManager instance
-        manager = cls("", config=config, http_session=http_session)
-
         # Request an access token and refresh token from Keycloak using the password grant type
-        data = manager._request_access_token(
+        data = cls._request_access_token(
+            config,
+            http_session,
             {"grant_type": "password", "username": username, "password": password},
             failure="AgriAtlas login failed",
         )
-        logger.info("Logged in to AgriAtlas as %s", username)
 
-        # Store the tokens and return it
-        manager._store_tokens(data)
+        # Create the TokenManager from the received tokens
+        manager = cls(**cls._parse_tokens(data), config=config, http_session=http_session)
+        logger.info("Logged in to AgriAtlas as %s", username)
 
         return manager
 
@@ -101,26 +100,34 @@ class TokenManager:
         self._refresh_expires_at = 0
         self._http_session = None
 
-    def _store_tokens(self, data: dict[str, Any]) -> None:
-        """Locally store the access token, refresh token, and their expiration times."""
+    @staticmethod
+    def _parse_tokens(data: dict[str, Any]) -> dict[str, Any]:
+        """Return the access token, refresh token and their expiration times from a Keycloak
+        token response, as keyword arguments for the constructor.
+        """
         now = time.monotonic()
 
         try:
-            # Store the access token
-            self._access_token = data["access_token"]
+            access_token = data["access_token"]
         except KeyError as err:
             raise AuthenticationError("AgriAtlas-Keycloak returned no access token") from err
 
-        # Compute the expiration time for the access token
-        self._expires_at = compute_token_expiration_deadline(now, data.get("expires_in"))
+        return {
+            "access_token": access_token,
+            "expires_at": compute_token_expiration_deadline(now, data.get("expires_in")),
+            "refresh_token": data.get("refresh_token"),
+            "refresh_expires_at": compute_token_expiration_deadline(
+                now, data.get("refresh_expires_in")
+            ),
+        }
 
-        # Store the refresh token
-        self._refresh_token = data.get("refresh_token")
-
-        # Compute the expiration time for the refresh token
-        self._refresh_expires_at = compute_token_expiration_deadline(
-            now, data.get("refresh_expires_in")
-        )
+    def _store_tokens(self, data: dict[str, Any]) -> None:
+        """Locally store the access token, refresh token, and their expiration times."""
+        tokens = self._parse_tokens(data)
+        self._access_token = tokens["access_token"]
+        self._expires_at = tokens["expires_at"]
+        self._refresh_token = tokens["refresh_token"]
+        self._refresh_expires_at = tokens["refresh_expires_at"]
 
     def _refresh_access_token(self) -> None:
         """Refresh the access token using the refresh token."""
@@ -134,6 +141,8 @@ class TokenManager:
         # Refresh the access token using the refresh token
         logger.debug("Refreshing the AgriAtlas access token")
         data = self._request_access_token(
+            self._config,
+            self._http_session,
             {"grant_type": "refresh_token", "refresh_token": self._refresh_token},
             failure="Could not refresh the AgriAtlas session; call agriatlas.login() again",
         )
@@ -141,31 +150,36 @@ class TokenManager:
         # Update tokens and expiration times
         self._store_tokens(data)
 
+    @staticmethod
     def _request_access_token(
-        self,
+        config: AgriAtlasConfig,
+        http_session: requests.Session | None,
         credential_form: dict[str, Any],
         *,
         failure: str,
     ) -> dict[str, Any]:
-        """Request an access token from Keycloak using the given form data."""
+        """Request an access token from Keycloak using the given form data.
+
+        Static, so that `password_grant()` can request the tokens before creating the manager.
+        """
 
         # The HTTP session is gone once the manager is closed
-        if self._http_session is None:
+        if http_session is None:
             raise AuthenticationError(f"{failure}: no HTTP session; call agriatlas.login() again")
 
         credential_form = {
-            "client_id": self._config.keycloak_client_id,
+            "client_id": config.keycloak_client_id,
             **credential_form,
         }
 
         try:
             # Send a POST request to the Keycloak token endpoint with the form data
-            response = self._http_session.post(
-                self._config.token_url, data=credential_form, timeout=self._config.timeout
+            response = http_session.post(
+                config.token_url, data=credential_form, timeout=config.timeout
             )
         except requests.RequestException as err:
             raise AuthenticationError(
-                f"{failure}: could not reach {self._config.token_url} ({type(err).__name__})"
+                f"{failure}: could not reach {config.token_url} ({type(err).__name__})"
             ) from err
 
         # Handle keycloak error responses
